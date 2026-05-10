@@ -5,31 +5,56 @@ declare global {
   interface Window {
     api: {
       platform: string;
-      projectGet: () => Promise<ProjectMeta>;
+
+      // Project management
+      projectGetPath: () => Promise<string | null>;
+      projectGetRecents: () => Promise<string[]>;
+      projectPickFolder: () => Promise<string | null>;
+      projectCreate: (folderPath: string, meta: { title: string; genre: string; synopsis: string }) => Promise<{ ok: boolean }>;
+      projectOpen: (folderPath: string) => Promise<{ ok: boolean; error?: string }>;
+      projectOpenFolder: () => Promise<void>;
+      projectOpenTerminal: () => Promise<void>;
+      projectGet: () => Promise<ProjectMeta | null>;
       projectSet: (data: object) => Promise<ProjectMeta>;
+
       chaptersList: () => Promise<ChapterFile[]>;
       chaptersGet: (slug: string) => Promise<ChapterDetail | null>;
       chaptersCreate: (data: { title: string; brief?: string }) => Promise<{ slug: string }>;
       chaptersSave: (slug: string, content: string, meta?: Record<string, string>) => Promise<{ ok: boolean }>;
       chaptersDelete: (slug: string) => Promise<{ ok: boolean }>;
+
       kbList: () => Promise<KbEntry[]>;
       kbGet: (kbPath: string) => Promise<string | null>;
       kbSave: (kbPath: string, content: string) => Promise<{ ok: boolean }>;
       kbDelete: (kbPath: string) => Promise<{ ok: boolean }>;
       kbCreate: (kbPath: string, name: string) => Promise<string>;
+
       entitiesList: (type?: string) => Promise<Entity[]>;
       entitiesGet: (id: string) => Promise<Entity | null>;
       entitiesSave: (entity: object) => Promise<Entity>;
       entitiesDelete: (id: string) => Promise<{ ok: boolean }>;
+
       relationshipsList: (entityId?: string) => Promise<Relationship[]>;
       relationshipsCreate: (rel: object) => Promise<Relationship>;
       relationshipsDelete: (id: string) => Promise<{ ok: boolean }>;
+
       assetsList: (entityId?: string) => Promise<Asset[]>;
       assetsSave: (meta: object, buffer: ArrayBuffer, filename: string, subdir: string) => Promise<Asset>;
       assetsDelete: (id: string) => Promise<{ ok: boolean }>;
+
       providersGet: () => Promise<ProviderConfig>;
       providersSet: (config: object) => Promise<{ ok: boolean }>;
       providersCheck: (providerId: string) => Promise<{ available: boolean }>;
+
+      // Import
+      importPickFiles: (filters: { name: string; extensions: string[] }[]) => Promise<string[]>;
+      importChapters: (filePaths: string[]) => Promise<string[]>;
+      importAssets: (filePaths: string[]) => Promise<Asset[]>;
+
+      // Claude Code
+      claudeRun: (message: string) => Promise<{ output?: string; error?: string }>;
+      claudeCheckInstalled: () => Promise<boolean>;
+      claudeOnChunk: (cb: (text: string) => void) => () => void;
     };
   }
 }

@@ -3,7 +3,15 @@ import { contextBridge, ipcRenderer } from "electron";
 const api = {
   platform: process.platform as string,
 
-  // Project
+  // Project management
+  projectGetPath: () => ipcRenderer.invoke("project:getPath"),
+  projectGetRecents: () => ipcRenderer.invoke("project:getRecents"),
+  projectPickFolder: () => ipcRenderer.invoke("project:pickFolder"),
+  projectCreate: (folderPath: string, meta: { title: string; genre: string; synopsis: string }) =>
+    ipcRenderer.invoke("project:create", folderPath, meta),
+  projectOpen: (folderPath: string) => ipcRenderer.invoke("project:open", folderPath),
+  projectOpenFolder: () => ipcRenderer.invoke("project:openFolder"),
+  projectOpenTerminal: () => ipcRenderer.invoke("project:openTerminal"),
   projectGet: () => ipcRenderer.invoke("project:get"),
   projectSet: (data: object) => ipcRenderer.invoke("project:set", data),
 
@@ -43,6 +51,21 @@ const api = {
   providersGet: () => ipcRenderer.invoke("providers:get"),
   providersSet: (config: object) => ipcRenderer.invoke("providers:set", config),
   providersCheck: (providerId: string) => ipcRenderer.invoke("providers:check", providerId),
+
+  // Import
+  importPickFiles: (filters: { name: string; extensions: string[] }[]) =>
+    ipcRenderer.invoke("import:pickFiles", filters),
+  importChapters: (filePaths: string[]) => ipcRenderer.invoke("import:chapters", filePaths),
+  importAssets: (filePaths: string[]) => ipcRenderer.invoke("import:assets", filePaths),
+
+  // Claude Code
+  claudeRun: (message: string) => ipcRenderer.invoke("claude:run", message),
+  claudeCheckInstalled: () => ipcRenderer.invoke("claude:checkInstalled"),
+  claudeOnChunk: (cb: (text: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, text: string) => cb(text);
+    ipcRenderer.on("claude:chunk", handler);
+    return () => ipcRenderer.removeListener("claude:chunk", handler);
+  },
 };
 
 contextBridge.exposeInMainWorld("api", api);
