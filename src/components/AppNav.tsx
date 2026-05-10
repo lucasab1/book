@@ -1,6 +1,4 @@
-"use client";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, useLocation } from "react-router-dom";
 
 const LINKS = [
   { href: "/manuscript", label: "Manuscript" },
@@ -10,23 +8,23 @@ const LINKS = [
 ];
 
 export default function AppNav() {
-  const path = usePathname();
+  const { pathname } = useLocation();
   return (
     <nav
       style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}
       className="flex items-center justify-between px-6 py-3"
     >
       <div className="flex items-center gap-6">
-        <Link href="/" style={{ color: "var(--accent)" }} className="text-base tracking-widest uppercase font-bold shrink-0">
+        <Link to="/" style={{ color: "var(--accent)" }} className="text-base tracking-widest uppercase font-bold shrink-0">
           Bookmoth
         </Link>
         <div className="flex items-center gap-1">
           {LINKS.map((l) => {
-            const active = path === l.href || (l.href !== "/" && path.startsWith(l.href));
+            const active = pathname === l.href || (l.href !== "/" && pathname.startsWith(l.href));
             return (
               <Link
                 key={l.href}
-                href={l.href}
+                to={l.href}
                 style={{
                   color: active ? "var(--text)" : "var(--muted)",
                   background: active ? "var(--surface2)" : "transparent",

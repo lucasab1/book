@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /home/user/book/src -type f | sort)",
+      "Read(//home/user/book/**)",
+      "Bash(cat /home/user/book/src/lib/entities/store.ts | head -30 && echo \"---\" && ls /home/user/book/src/lib/)",
+      "Read(//home/user/book/src/lib/entities/**)",
+      "Read(//home/user/book/src/**)",
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Books\\\\book\\\\src\\\\pages\")"
+    ]
+  }
+}
