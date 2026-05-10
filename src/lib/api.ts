@@ -60,6 +60,8 @@ declare global {
       aiRun: (provider: string, message: string) => Promise<{ output?: string; error?: string }>;
       aiCheckInstalled: () => Promise<{ claude: boolean; gemini: boolean }>;
       aiOnChunk: (cb: (text: string) => void) => () => void;
+      aiOnStart: (cb: (data: { pid: number }) => void) => () => void;
+      aiSendInput: (pid: number, text: string) => void;
     };
   }
 }

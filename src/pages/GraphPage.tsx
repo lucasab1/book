@@ -1,39 +1,61 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
-import AppNav from "../components/AppNav";
 import { api, Entity, Relationship, EntityType } from "../lib/api";
 
 const TYPE_COLORS: Record<EntityType, string> = { character: "#c9a84c", location: "#7eb8c9", faction: "#c97e7e", race: "#9e7ec9", nation: "#7ec97e", religion: "#c9b07e", magic_system: "#c97eb8", skill: "#7ec9b8", item: "#c9c97e", creature: "#c98c7e", event: "#7e9ec9", arc: "#c9a84c", scene: "#888", timeline: "#888", relationship: "#888", lore: "#a0a0a0" };
 
 interface NodePos { id: string; x: number; y: number; vx: number; vy: number }
 
-function forceLayout(entities: Entity[], rels: Relationship[], W: number, H: number): Map<string, { x: number; y: number }> {
-  const pos = new Map<string, NodePos>();
-  const ids = entities.map((e) => e.id);
-  ids.forEach((id) => pos.set(id, { id, x: W / 2 + (Math.random() - 0.5) * 300, y: H / 2 + (Math.random() - 0.5) * 300, vx: 0, vy: 0 }));
-  for (let iter = 0; iter < 100; iter++) {
-    const k = 1 - iter / 100;
-    for (let i = 0; i < ids.length; i++) {
-      for (let j = i + 1; j < ids.length; j++) {
-        const a = pos.get(ids[i])!, b = pos.get(ids[j])!;
-        const dx = a.x - b.x, dy = a.y - b.y, dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const f = (6000 / (dist * dist)) * k;
-        a.vx += (dx / dist) * f; a.vy += (dy / dist) * f; b.vx -= (dx / dist) * f; b.vy -= (dy / dist) * f;
+function forceLayout(ents: Entity[], rels: Relationship[], width: number, height: number) {
+  const nodes: NodePos[] = ents.map((e, i) => ({
+    id: e.id,
+    x: width / 2 + (Math.random() - 0.5) * 100,
+    y: height / 2 + (Math.random() - 0.5) * 100,
+    vx: 0,
+    vy: 0,
+  }));
+
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+
+  for (let i = 0; i < 100; i++) {
+    // Repulsion
+    for (let a = 0; a < nodes.length; a++) {
+      for (let b = a + 1; b < nodes.length; b++) {
+        const dx = nodes[b].x - nodes[a].x;
+        const dy = nodes[b].y - nodes[a].y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const force = 400 / (dist * dist);
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
+        nodes[a].vx -= fx; nodes[a].vy -= fy;
+        nodes[b].vx += fx; nodes[b].vy += fy;
       }
     }
+
+    // Attraction
     for (const r of rels) {
-      const a = pos.get(r.source_id), b = pos.get(r.target_id);
+      const a = nodeMap.get(r.source_id), b = nodeMap.get(r.target_id);
       if (!a || !b) continue;
-      const dx = b.x - a.x, dy = b.y - a.y, dist = Math.sqrt(dx * dx + dy * dy) || 1, f = dist * 0.01 * k;
-      a.vx += (dx / dist) * f; a.vy += (dy / dist) * f; b.vx -= (dx / dist) * f; b.vy -= (dy / dist) * f;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const force = (dist - 100) * 0.05;
+      const fx = (dx / dist) * force;
+      const fy = (dy / dist) * force;
+      a.vx += fx; a.vy += fy;
+      b.vx -= fx; b.vy -= fy;
     }
-    for (const p of pos.values()) {
-      p.vx += (W / 2 - p.x) * 0.002; p.vy += (H / 2 - p.y) * 0.002;
-      p.x = Math.max(40, Math.min(W - 40, p.x + p.vx)); p.y = Math.max(40, Math.min(H - 40, p.y + p.vy));
-      p.vx *= 0.8; p.vy *= 0.8;
+
+    // Center gravity
+    for (const n of nodes) {
+      n.vx += (width / 2 - n.x) * 0.01;
+      n.vy += (height / 2 - n.y) * 0.01;
+      n.x += n.vx; n.y += n.vy;
+      n.vx *= 0.8; n.vy *= 0.8;
     }
   }
-  return new Map(Array.from(pos.entries()).map(([id, p]) => [id, { x: p.x, y: p.y }]));
+
+  return new Map(nodes.map((n) => [n.id, { x: n.x, y: n.y }]));
 }
 
 export default function GraphPage() {
@@ -67,9 +89,8 @@ export default function GraphPage() {
   }, [dragging]);
 
   return (
-    <div style={{ background: "var(--bg)", color: "var(--text)", minHeight: "100vh" }}>
-      <AppNav />
-      <div className="flex h-[calc(100vh-49px)]">
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 relative overflow-hidden">
           <div style={{ position: "absolute", top: 12, left: 12, zIndex: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
             <button onClick={() => setFilter("all")} style={{ background: filter === "all" ? "var(--accent)" : "var(--surface)", color: filter === "all" ? "#000" : "var(--muted)", border: "1px solid var(--border)" }} className="text-xs px-3 py-1 rounded font-bold">All</button>

@@ -75,6 +75,12 @@ const api = {
     ipcRenderer.on("ai:chunk", handler);
     return () => ipcRenderer.removeListener("ai:chunk", handler);
   },
+  aiOnStart: (cb: (data: { pid: number }) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, data: { pid: number }) => cb(data);
+    ipcRenderer.on("ai:start", handler);
+    return () => ipcRenderer.removeListener("ai:start", handler);
+  },
+  aiSendInput: (pid: number, text: string) => ipcRenderer.send("ai:input", { pid, text }),
 };
 
 contextBridge.exposeInMainWorld("api", api);

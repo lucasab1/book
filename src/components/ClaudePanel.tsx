@@ -1,46 +1,46 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { api } from "../lib/api";
+import { useEffect, useRef, useState } from "react";
+import { useAI, AIProviderID, Message } from "../lib/context/AIContext";
 
-type Provider = "claude" | "gemini";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-  provider?: Provider;
-  streaming?: boolean;
-  error?: boolean;
-}
-
-const PROVIDERS: { id: Provider; label: string; color: string }[] = [
+const PROVIDERS: { id: AIProviderID; label: string; color: string }[] = [
   { id: "claude", label: "Claude", color: "#d97706" },
   { id: "gemini", label: "Gemini", color: "#3b82f6" },
 ];
 
-// Slash commands only make sense for Claude Code (which reads CLAUDE.md + skills)
-const QUICK_COMMANDS = [
-  { label: "/write", desc: "Draft prose for current chapter" },
-  { label: "/critique", desc: "Developmental feedback" },
-  { label: "/brainstorm", desc: "Explore story ideas" },
-  { label: "/ripple", desc: "Check character reactions" },
-  { label: "/outline", desc: "Story structure" },
-  { label: "/continuity", desc: "Check against KB" },
-];
+function PermissionBlock({ text, pid }: { text: string, pid?: number }) {
+  const { sendInput } = useAI();
+  if (!pid) return null;
 
-// Build a context-aware prompt that includes conversation history.
-// For slash commands (Claude), send as-is — Claude Code handles its own context.
-function buildPrompt(history: Message[], newMsg: string): string {
-  const isSlashCmd = newMsg.trim().startsWith("/");
-  if (isSlashCmd || history.length === 0) return newMsg;
-  const recent = history.slice(-6); // last 3 turns
-  const ctx = recent
-    .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content.trim()}`)
-    .join("\n\n");
-  return `${ctx}\n\nUser: ${newMsg}`;
+  const isPermission = text.includes("Allow") || text.includes("permission") || text.includes("(y/n)");
+  if (!isPermission) return null;
+
+  return (
+    <div className="mt-4 p-4 rounded-xl border border-accent bg-accent/5 flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2">
+      <p className="text-[10px] font-black uppercase tracking-wider text-accent">Permission Requested</p>
+      <div className="flex gap-2">
+        <button 
+          onClick={() => sendInput(pid, "y")}
+          className="px-4 py-2 bg-accent text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-accent-dim transition-colors"
+        >
+          Allow (y)
+        </button>
+        <button 
+          onClick={() => sendInput(pid, "n")}
+          className="px-4 py-2 bg-surface2 text-muted text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-surface3 transition-colors"
+        >
+          Deny (n)
+        </button>
+      </div>
+    </div>
+  );
 }
 
-// Very basic markdown → rendered: bold, code blocks, inline code, line breaks
 function renderMarkdown(text: string) {
-  const lines = text.split("\n");
+  const cleanText = text
+    .replace(/\u001b\[\d+m/g, "")
+    .replace(/Tokens: [\d,]+ input, [\d,]+ output/g, "")
+    .trim();
+
+  const lines = cleanText.split("\n");
   const result: React.ReactNode[] = [];
   let inCode = false;
   let codeLines: string[] = [];
@@ -55,9 +55,9 @@ function renderMarkdown(text: string) {
         codeLines = [];
       } else {
         result.push(
-          <pre key={i} style={{ background: "var(--surface2)", border: "1px solid var(--border)", overflowX: "auto" }}
-            className="rounded p-3 text-xs my-2 font-mono">
-            {lang && <span style={{ color: "var(--muted)" }} className="block text-xs mb-1">{lang}</span>}
+          <pre key={i} style={{ background: "var(--bg)", border: "1px solid var(--border)", overflowX: "auto" }}
+            className="rounded-xl p-4 text-[11px] my-3 font-mono shadow-inner">
+            {lang && <span className="block text-accent/50 text-[9px] uppercase font-black mb-2 tracking-widest">{lang}</span>}
             {codeLines.join("\n")}
           </pre>
         );
@@ -68,186 +68,134 @@ function renderMarkdown(text: string) {
     } else if (inCode) {
       codeLines.push(line);
     } else {
-      // Inline formatting
       const parts = line.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
       const formatted = parts.map((part, j) => {
         if (part.startsWith("`") && part.endsWith("`"))
-          return <code key={j} style={{ background: "var(--surface2)", color: "var(--accent)" }} className="px-1 rounded text-xs font-mono">{part.slice(1, -1)}</code>;
+          return <code key={j} className="bg-surface2 text-accent px-1.5 py-0.5 rounded text-[10px] font-mono border border-border">{part.slice(1, -1)}</code>;
         if (part.startsWith("**") && part.endsWith("**"))
-          return <strong key={j}>{part.slice(2, -2)}</strong>;
+          return <strong key={j} className="text-text font-bold">{part.slice(2, -2)}</strong>;
         return part;
       });
-      result.push(<span key={i}>{formatted}{i < lines.length - 1 ? <br /> : null}</span>);
+      result.push(<span key={i} className="leading-relaxed block mb-1">{formatted}</span>);
     }
   }
   return result;
 }
 
-export default function ClaudePanel({ onClose }: { onClose: () => void }) {
-  const [provider, setProvider] = useState<Provider>("claude");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [running, setRunning] = useState(false);
-  const [installed, setInstalled] = useState<{ claude: boolean; gemini: boolean } | null>(null);
+export default function ClaudePanel() {
+  const {
+    messages, currentProvider, isBusy, installed,
+    sendMessage, setPanelOpen, setProvider, clearHistory
+  } = useAI();
+
+  const [localInput, setLocalInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const messagesRef = useRef<Message[]>([]);
-  messagesRef.current = messages;
-
-  useEffect(() => {
-    api.aiCheckInstalled().then((r) => {
-      if (r) {
-        setInstalled(r);
-        if (!r.claude && r.gemini) setProvider("gemini");
-      }
-    });
-  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const send = useCallback(async (text?: string) => {
-    const raw = (text ?? input).trim();
-    if (!raw || running) return;
-    setInput("");
-    setRunning(true);
-
-    const userMsg: Message = { role: "user", content: raw };
-    const assistantMsg: Message = { role: "assistant", content: "", provider, streaming: true };
-
-    setMessages((prev) => [...prev, userMsg, assistantMsg]);
-
-    const prompt = buildPrompt(messagesRef.current, raw);
-
-    const unsub = api.aiOnChunk((chunk) => {
-      setMessages((prev) => {
-        const copy = [...prev];
-        const last = copy[copy.length - 1];
-        if (last?.streaming) copy[copy.length - 1] = { ...last, content: last.content + chunk };
-        return copy;
-      });
-    });
-
-    const result = await api.aiRun(provider, prompt);
-    unsub();
-
-    setMessages((prev) => {
-      const copy = [...prev];
-      const last = copy[copy.length - 1];
-      if (last?.streaming) {
-        copy[copy.length - 1] = {
-          ...last,
-          streaming: false,
-          error: !!result?.error,
-          content: result?.error ? result.error : last.content,
-        };
-      }
-      return copy;
-    });
-
-    setRunning(false);
+  const onSend = async (text?: string) => {
+    const val = text ?? localInput;
+    if (!val.trim() || isBusy) return;
+    if (!text) setLocalInput("");
+    await sendMessage(val);
     inputRef.current?.focus();
-  }, [input, running, provider]);
+  };
 
-  function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
-  }
+  const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); }
+  };
 
-  const activeInstalled = installed ? installed[provider] : null;
+  const activeInstalled = installed ? installed[currentProvider] : null;
 
   return (
-    <div style={{ background: "var(--surface)", borderLeft: "1px solid var(--border)", width: 400, minWidth: 340 }}
-      className="flex flex-col h-full shrink-0">
+    <div style={{ background: "var(--surface)", borderLeft: "1px solid var(--border)", width: 420, minWidth: 380 }}
+      className="flex flex-col h-full shrink-0 shadow-2xl z-50">
 
       {/* Header */}
-      <div style={{ borderBottom: "1px solid var(--border)" }} className="flex items-center justify-between px-4 py-2.5">
-        <div className="flex items-center gap-1">
+      <div style={{ borderBottom: "1px solid var(--border)" }} className="flex items-center justify-between px-6 py-4">
+        <div className="flex items-center gap-1.5">
           {PROVIDERS.map((p) => {
-            const avail = installed ? installed[p.id] : null;
-            const active = provider === p.id;
+            const active = currentProvider === p.id;
             return (
               <button key={p.id} onClick={() => setProvider(p.id)}
                 style={{
-                  color: active ? p.color : "var(--muted)",
-                  background: active ? "var(--surface2)" : "transparent",
-                  border: active ? `1px solid ${p.color}40` : "1px solid transparent",
-                  opacity: avail === false ? 0.4 : 1,
+                  color: active ? "var(--text)" : "var(--muted)",
+                  borderBottom: active ? "2px solid var(--accent)" : "2px solid transparent",
                 }}
-                className="text-xs px-3 py-1 rounded font-bold transition-all">
+                className="text-[10px] uppercase tracking-widest px-3 py-1 font-black transition-all hover:text-text">
                 {p.label}
-                {avail === true && active && <span style={{ color: "#7ec97e" }} className="ml-1">●</span>}
-                {avail === false && <span style={{ color: "#c97e7e" }} className="ml-1">✕</span>}
               </button>
             );
           })}
         </div>
-        <div className="flex items-center gap-2">
-          {messages.length > 0 && (
-            <button onClick={() => setMessages([])}
-              style={{ color: "var(--muted)", border: "1px solid var(--border)" }}
-              className="text-xs px-2 py-0.5 rounded hover:opacity-80">New chat</button>
-          )}
-          <button onClick={onClose} style={{ color: "var(--muted)" }} className="text-sm hover:opacity-80 px-1">✕</button>
+        <div className="flex items-center gap-3">
+          <button onClick={clearHistory} className="text-[10px] uppercase font-black text-muted hover:text-text transition-colors">Clear</button>
+          <button onClick={() => setPanelOpen(false)} className="text-muted hover:text-text">✕</button>
         </div>
       </div>
 
-      {/* Quick commands — shown as chips below header when chat is empty */}
-      {messages.length === 0 && provider === "claude" && (
-        <div style={{ borderBottom: "1px solid var(--border)" }} className="px-3 py-3">
-          <p style={{ color: "var(--muted)" }} className="text-xs uppercase tracking-widest mb-2">Claude Code commands</p>
-          <div className="grid grid-cols-2 gap-1.5">
-            {QUICK_COMMANDS.map((cmd) => (
-              <button key={cmd.label} onClick={() => send(cmd.label)}
-                style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", textAlign: "left" }}
-                className="rounded px-2.5 py-2 text-xs hover:border-amber-700 transition-colors">
-                <div style={{ color: "#d97706" }} className="font-mono font-bold">{cmd.label}</div>
-                <div style={{ color: "var(--muted)" }} className="text-xs leading-tight mt-0.5">{cmd.desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {messages.length === 0 && provider === "gemini" && (
-        <div style={{ borderBottom: "1px solid var(--border)" }} className="px-3 py-3">
-          <p style={{ color: "var(--muted)" }} className="text-xs mb-2">Ask Gemini anything about your project — brainstorming, feedback, lore questions.</p>
-          <div className="flex flex-wrap gap-1.5">
-            {["Give me plot ideas", "Brainstorm chapter ideas", "Suggest character arc", "Check story consistency"].map((q) => (
-              <button key={q} onClick={() => send(q)}
-                style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--muted)" }}
-                className="text-xs px-2.5 py-1.5 rounded hover:opacity-80">
-                {q}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8 scroll-smooth">
+        {messages.length === 0 && (
+          <div className="flex-1 flex flex-col items-center justify-center text-center opacity-40">
+            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-text mb-2">Assistant</h3>
+            <p className="text-[11px] text-muted max-w-[200px] leading-relaxed">
+              Connected to local {currentProvider === "claude" ? "Claude Code" : "Gemini CLI"}.
+            </p>
+          </div>
+        )}
+        
         {messages.map((m, i) => (
-          <div key={i} className={m.role === "user" ? "flex justify-end" : "flex gap-2"}>
+          <div key={i} className={m.role === "user" ? "flex justify-end" : "flex flex-col"}>
             {m.role === "user" ? (
-              <div style={{ background: "var(--accent)", color: "#000" }}
-                className="rounded-2xl rounded-tr-sm px-3 py-2 text-sm max-w-[85%] whitespace-pre-wrap leading-relaxed">
+              <div style={{ background: "#fff", border: "1px solid var(--border)" }}
+                className="rounded-xl px-4 py-2 text-[12px] max-w-[90%] whitespace-pre-wrap leading-relaxed shadow-sm text-text font-medium">
                 {m.content}
               </div>
             ) : (
-              <div className="flex-1 min-w-0">
-                <div style={{
-                  color: m.error ? "#c97e7e" : "var(--text)",
-                  borderLeft: `2px solid ${m.provider === "gemini" ? "#3b82f640" : "#d9770640"}`,
-                }} className="pl-3 text-sm leading-relaxed">
-                  {m.streaming && m.content === "" ? (
-                    <span style={{ color: "var(--muted)" }} className="animate-pulse">thinking…</span>
-                  ) : (
-                    <>
-                      {renderMarkdown(m.content)}
-                      {m.streaming && <span style={{ color: m.provider === "gemini" ? "#3b82f6" : "#d97706" }} className="animate-pulse">▌</span>}
-                    </>
-                  )}
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2 mb-3">
+                   <div className={`w-1 h-1 rounded-full ${m.provider === 'gemini' ? 'bg-blue-400' : 'bg-accent'}`}></div>
+                   <span className="text-[9px] font-black uppercase tracking-widest text-muted">{m.provider}</span>
                 </div>
+                
+                <div className="flex flex-col gap-3">
+                  {m.thought && (
+                    <div className="text-[11px] text-muted italic bg-surface2/30 p-3 rounded-xl border border-border/50 leading-relaxed">
+                      <span className="block text-[8px] font-black uppercase tracking-widest mb-1 opacity-50 not-italic">Thought</span>
+                      {m.thought}
+                      {m.streaming && !m.content && <span className="inline-block w-1 h-3 bg-accent/20 ml-1 animate-pulse align-middle" />}
+                    </div>
+                  )}
+
+                  <div className="text-[12px] text-text/90">
+                    {m.streaming && m.content === "" && !m.thought ? (
+                      <div className="flex gap-1 items-center">
+                        <div className="w-1 h-1 bg-accent rounded-full animate-bounce"></div>
+                        <div className="w-1 h-1 bg-accent rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                        <div className="w-1 h-1 bg-accent rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-1">
+                          {renderMarkdown(m.content)}
+                        </div>
+                        {m.streaming && <span className="inline-block w-1 h-3 bg-accent ml-1 animate-pulse align-middle"></span>}
+                        <PermissionBlock text={m.content} pid={m.pid} />
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {!m.streaming && m.usage && (
+                   <div className="mt-4 pt-4 border-t border-border flex gap-4 text-[9px] font-black uppercase tracking-widest text-muted/40">
+                     <span>Input: {m.usage.inputTokens}</span>
+                     <span>Output: {m.usage.outputTokens}</span>
+                   </div>
+                )}
               </div>
             )}
           </div>
@@ -256,41 +204,39 @@ export default function ClaudePanel({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Input */}
-      <div style={{ borderTop: "1px solid var(--border)" }} className="p-3">
+      <div className="p-6">
         {activeInstalled === false ? (
-          <div style={{ color: "#c97e7e", background: "var(--surface2)" }} className="rounded p-3 text-xs leading-relaxed">
-            {provider === "claude"
-              ? <>Claude Code not found. Install: <code>npm i -g @anthropic-ai/claude-code</code></>
-              : <>Gemini CLI not found. Install: <code>npm i -g @google/gemini-cli</code></>}
-          </div>
+          <div className="text-[10px] text-red-500 font-bold uppercase tracking-widest">CLI NOT FOUND</div>
         ) : (
-          <div className="flex gap-2 items-end">
+          <div className="relative">
             <textarea
               ref={inputRef}
-              value={input}
+              value={localInput}
               onChange={(e) => {
-                setInput(e.target.value);
+                setLocalInput(e.target.value);
                 e.target.style.height = "auto";
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+                e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
               }}
               onKeyDown={handleKey}
-              placeholder={provider === "claude" ? "Message Claude… (/write, /critique, /brainstorm…)" : "Ask Gemini…"}
-              rows={2}
-              disabled={running}
-              style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", resize: "none", minHeight: 44 }}
-              className="flex-1 px-3 py-2.5 rounded-lg text-sm outline-none focus:border-amber-600 disabled:opacity-50"
+              placeholder={`Ask ${currentProvider === "claude" ? "Claude" : "Gemini"}...`}
+              rows={1}
+              disabled={isBusy}
+              style={{ background: "#fff", border: "1px solid var(--border)" }}
+              className="w-full pl-4 pr-12 py-3 rounded-xl text-[12px] outline-none focus:border-accent shadow-sm transition-all disabled:opacity-50"
             />
-            <button onClick={() => send()} disabled={!input.trim() || running}
-              style={{
-                background: running ? "var(--surface2)" : (provider === "gemini" ? "#3b82f6" : "var(--accent)"),
-                color: running ? "var(--muted)" : "#000",
-              }}
-              className="w-9 h-9 rounded-lg text-sm font-bold shrink-0 disabled:opacity-40 flex items-center justify-center self-end">
-              {running ? "…" : "↑"}
+            <button 
+              onClick={() => onSend()} 
+              disabled={!localInput.trim() || isBusy}
+              className="absolute right-2 bottom-2 w-8 h-8 rounded-lg flex items-center justify-center text-accent disabled:opacity-20"
+            >
+              {isBusy ? (
+                <div className="w-4 h-4 border-2 border-accent/20 border-t-accent rounded-full animate-spin" />
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+              )}
             </button>
           </div>
         )}
-        <p style={{ color: "var(--muted)" }} className="text-xs mt-1.5 text-right">Enter to send · Shift+Enter for newline</p>
       </div>
     </div>
   );

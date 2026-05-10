@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, ChapterFile } from "../lib/api";
+import { useAI } from "../lib/context/AIContext";
 
 export default function ChapterPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -10,9 +11,12 @@ export default function ChapterPage() {
   const [brief, setBrief] = useState("");
   const [saved, setSaved] = useState(true);
   const [loaded, setLoaded] = useState(false);
+  const [chapters, setChapters] = useState<ChapterFile[]>([]);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { sendMessage, setPanelOpen } = useAI();
 
   useEffect(() => {
+    loadChapters();
     if (!slug) return;
     api.chaptersGet(slug).then((data) => {
       if (!data) { navigate("/manuscript"); return; }
@@ -22,6 +26,10 @@ export default function ChapterPage() {
       setLoaded(true);
     });
   }, [slug, navigate]);
+
+  async function loadChapters() {
+    setChapters(await api.chaptersList());
+  }
 
   function scheduleSave(c: string, t: string, b: string) {
     setSaved(false);
@@ -33,65 +41,171 @@ export default function ChapterPage() {
   }
 
   if (!loaded) return (
-    <div style={{ background: "var(--bg)", color: "var(--muted)", minHeight: "100vh" }} className="flex items-center justify-center text-sm">Loading…</div>
+    <div style={{ background: "var(--bg)", color: "var(--muted)", minHeight: "100vh" }} className="flex items-center justify-center text-sm font-black uppercase tracking-widest">Loading...</div>
   );
 
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
+  const currentIdx = chapters.findIndex(c => c.slug === slug);
 
   return (
     <div style={{ background: "var(--bg)", color: "var(--text)", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <nav style={{ borderBottom: "1px solid var(--border)" }} className="flex items-center justify-between px-6 py-4 shrink-0">
-        <div className="flex items-center gap-3">
-          <Link to="/" style={{ color: "var(--accent)" }} className="text-base tracking-widest uppercase font-bold">Bookmoth</Link>
-          <span style={{ color: "var(--border)" }}>/</span>
-          <Link to="/manuscript" style={{ color: "var(--muted)" }} className="text-sm hover:opacity-80">Manuscript</Link>
-          <span style={{ color: "var(--border)" }}>/</span>
-          <span className="text-sm truncate max-w-48">{title}</span>
+      
+      {/* 1. Main App Header (from the print) */}
+      <header style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)" }} className="flex items-center justify-between px-6 py-2 shrink-0">
+        <div className="flex items-center gap-6">
+          <Link to="/" className="text-xs tracking-[0.2em] font-black uppercase opacity-60">bookmoth</Link>
+          <div className="flex items-center bg-surface border border-border rounded px-3 py-1 gap-2">
+             <span className="text-[10px] opacity-40">▼</span>
+             <span className="text-[10px] font-black uppercase tracking-widest">{title || "Untitled"}</span>
+          </div>
         </div>
-        <span style={{ color: saved ? "var(--muted)" : "var(--accent)" }} className="text-xs">
-          {saved ? `${wordCount.toLocaleString()} words · saved` : "Saving…"}
-        </span>
-      </nav>
+
+        {/* Tab-style Navigation */}
+        <div className="flex items-center gap-1">
+          {["Brief", "Chapter Plan", "Bible", "Manuscript"].map((tab) => (
+            <button 
+              key={tab} 
+              className={`px-4 py-2 text-[11px] font-bold rounded-md transition-all ${tab === 'Manuscript' ? 'bg-white shadow-sm border border-border' : 'opacity-40 hover:opacity-100'}`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+           {["Dark", "Cloud Δ", "API / LLM", "Save", "Load", "Export"].map(btn => (
+             <button key={btn} className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border border-border rounded-md hover:bg-surface transition-colors ${btn === 'Export' ? 'bg-accent text-black border-accent' : ''}`}>
+               {btn === 'API / LLM' ? 'Claude Code' : btn}
+             </button>
+           ))}
+        </div>
+      </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <aside style={{ borderRight: "1px solid var(--border)", background: "var(--surface)", width: "240px", minWidth: "240px" }} className="flex flex-col p-5 overflow-y-auto">
-          <div className="mb-5">
-            <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: "var(--accent)" }}>Chapter title</label>
-            <input value={title} onChange={(e) => { setTitle(e.target.value); scheduleSave(content, e.target.value, brief); }}
-              style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)" }}
-              className="w-full px-3 py-2 rounded text-sm outline-none focus:border-amber-600" />
+        
+        {/* 2. Left Sidebar: Chapters (matches print) */}
+        <aside style={{ background: "var(--surface)", borderRight: "1px solid var(--border)", width: "220px" }} className="flex flex-col shrink-0">
+          <div className="p-4 border-b border-border">
+            <h2 className="text-[9px] font-black uppercase tracking-[0.2em] text-muted mb-1">Chapters</h2>
+            <p className="text-[8px] text-muted italic leading-tight">Right-click a chapter to switch or add versions in manuscript.</p>
           </div>
-          <div className="mb-5">
-            <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: "var(--accent)" }}>Brief</label>
-            <textarea value={brief} onChange={(e) => { setBrief(e.target.value); scheduleSave(content, title, e.target.value); }} rows={7}
-              placeholder="What happens? Claude Code uses this brief."
-              style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", resize: "none" }}
-              className="w-full px-3 py-2 rounded text-sm outline-none focus:border-amber-600 leading-relaxed" />
-          </div>
-          <div style={{ borderTop: "1px solid var(--border)" }} className="pt-5 mt-auto">
-            <p style={{ color: "var(--accent)" }} className="text-xs font-bold uppercase tracking-widest mb-3">Claude Code</p>
-            <div className="flex flex-col gap-2">
-              {[{ cmd: "/write", note: "draft this chapter" }, { cmd: "/critique", note: "get feedback" }, { cmd: "/ripple", note: "scene editing pass" }, { cmd: "/continuity", note: "check errors" }].map((c) => (
-                <div key={c.cmd} className="flex items-center gap-2">
-                  <code style={{ color: "var(--accent)" }} className="text-xs w-24 shrink-0">{c.cmd}</code>
-                  <span style={{ color: "var(--muted)" }} className="text-xs">{c.note}</span>
-                </div>
-              ))}
-            </div>
-            <p style={{ color: "var(--muted)" }} className="text-xs mt-4 leading-relaxed">
-              File: <code style={{ color: "var(--text)" }}>story/{slug}.md</code>
-            </p>
+          <div className="flex-1 overflow-y-auto py-2">
+            {chapters.map((ch, i) => {
+              const active = ch.slug === slug;
+              return (
+                <Link 
+                  key={ch.slug} 
+                  to={`/manuscript/chapter/${ch.slug}`}
+                  className={`sidebar-item mx-2 mb-0.5 py-2 px-3 ${active ? 'active' : ''}`}
+                >
+                  <span className="text-[10px] font-black opacity-30 w-4">{i + 1}</span>
+                  <span className="truncate flex-1 text-[11px] font-bold">{ch.title}</span>
+                  <div className={`status-dot ${ch.wordCount > 0 ? 'green' : 'gray'}`}></div>
+                </Link>
+              );
+            })}
           </div>
         </aside>
 
-        <textarea
-          value={content}
-          onChange={(e) => { setContent(e.target.value); scheduleSave(e.target.value, title, brief); }}
-          placeholder={`Start writing "${title}"…\n\nOr run /write in Claude Code to generate a draft from the brief.`}
-          style={{ background: "var(--bg)", color: "var(--text)", border: "none", resize: "none", fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "1.05rem", lineHeight: "1.9", flex: 1 }}
-          className="w-full px-16 py-12 outline-none"
-          spellCheck
-        />
+        {/* 3. Central Column: The Editor and Toolbars (matches print) */}
+        <main className="flex-1 overflow-y-auto relative bg-[#fdfaf5]">
+          
+          {/* Inner Toolbar (the one with Italicise, etc.) */}
+          <div className="sticky top-0 z-10 bg-[#fdfaf5]/80 backdrop-blur-sm border-b border-border px-8 py-2 flex items-center justify-between">
+             <div className="flex items-center gap-1">
+                {["Italicise", "* * *", "— fix", "↶", "↷", "[ ] Focus"].map(tool => (
+                  <button key={tool} className="px-3 py-1.5 text-[10px] font-medium text-muted hover:text-text border border-transparent hover:border-border rounded transition-all italic">
+                    {tool}
+                  </button>
+                ))}
+             </div>
+             <div className="flex items-center gap-2">
+                <div className="flex items-center bg-white border border-border rounded text-[10px] font-black px-2 py-1">v1</div>
+                <span className="text-[10px] font-black text-muted uppercase tracking-widest">{wordCount.toLocaleString()} w</span>
+                <button className="text-[10px] font-black text-muted uppercase tracking-widest hover:text-text">Hide version</button>
+             </div>
+          </div>
+
+          <div className="max-w-[700px] mx-auto px-12 py-16">
+            <div className="mb-12">
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-accent/60 block mb-2">Chapter {currentIdx + 1}</span>
+              <input 
+                value={title} 
+                onChange={(e) => { setTitle(e.target.value); scheduleSave(content, e.target.value, brief); }}
+                style={{ background: "transparent", border: "none", color: "var(--text)" }}
+                className="text-4xl font-serif font-bold outline-none w-full placeholder:opacity-10"
+                placeholder="Chapter Title"
+              />
+            </div>
+
+            <textarea
+              value={content}
+              onChange={(e) => { setContent(e.target.value); scheduleSave(e.target.value, title, brief); }}
+              placeholder="The story begins here..."
+              className="manuscript-editor w-full h-[150vh] outline-none bg-transparent resize-none border-none overflow-hidden"
+              spellCheck={false}
+            />
+          </div>
+        </main>
+
+        {/* 4. Right Sidebar: Manuscript Stats & Actions (matches print) */}
+        <aside style={{ background: "var(--surface)", borderLeft: "1px solid var(--border)", width: "240px" }} className="flex flex-col shrink-0">
+          <div className="p-6">
+            <div className="mb-10">
+               <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-muted mb-2">Manuscript</h3>
+               <p className="text-5xl font-serif font-medium text-accent">{(wordCount/1000).toFixed(1)}k</p>
+               <p className="text-[10px] font-bold text-muted mt-1">{chapters.length} chapters</p>
+               
+               <div className="mt-4 space-y-1.5">
+                  {chapters.slice(0, 10).map(ch => (
+                    <div key={ch.slug} className="flex justify-between items-baseline text-[10px]">
+                       <span className={`truncate mr-2 ${ch.slug === slug ? 'font-black text-text' : 'text-muted'}`}>Ch {chapters.indexOf(ch)+1}: {ch.title}</span>
+                       <span className="text-muted opacity-60">{(ch.wordCount/1000).toFixed(1)}k</span>
+                    </div>
+                  ))}
+               </div>
+            </div>
+
+            <div className="space-y-2 mb-10">
+               <button 
+                onClick={() => setPanelOpen(true)}
+                className="w-full py-2.5 bg-accent text-black text-[10px] font-black uppercase tracking-widest rounded shadow-sm hover:opacity-90"
+               >
+                 Ask the Editor...
+               </button>
+               <button onClick={() => sendMessage(`/write the chapter ${title}`)} className="w-full py-2.5 bg-white border border-border text-text text-[10px] font-bold rounded hover:bg-surface transition-colors">
+                 Polish / Lyric Pass — Ch {currentIdx + 1}
+               </button>
+               <button className="w-full py-2.5 bg-white border border-border text-text text-[10px] font-bold rounded hover:bg-surface transition-colors">
+                 Δ Refresh Bible — Ch {currentIdx + 1}
+               </button>
+               <button className="w-full py-2.5 bg-white border border-border text-text text-[10px] font-bold rounded hover:bg-surface transition-colors">
+                 Export Chapter — Ch {currentIdx + 1}
+               </button>
+               <button className="w-full py-2.5 bg-white border border-border text-text text-[10px] font-bold rounded hover:bg-surface transition-colors">
+                 Export Manuscript
+               </button>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-muted mb-3">Chapter Notes</h3>
+              <div style={{ background: "var(--bg)", border: "1px solid var(--border)" }} className="w-full h-32 rounded-lg p-3">
+                 <textarea 
+                  value={brief} 
+                  onChange={(e) => { setBrief(e.target.value); scheduleSave(content, title, e.target.value); }}
+                  className="w-full h-full bg-transparent text-[10px] leading-relaxed text-muted resize-none outline-none"
+                  placeholder="Notes for the AI editor..."
+                />
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-muted mb-3">General Notes</h3>
+              <div style={{ background: "var(--bg)", border: "1px solid var(--border)" }} className="w-full h-24 rounded-lg"></div>
+            </div>
+          </div>
+        </aside>
+
       </div>
     </div>
   );

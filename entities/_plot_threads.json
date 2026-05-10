@@ -1,0 +1,20 @@
+{
+  "threads": [
+    {
+      "id": "thread-001",
+      "title": "A Identidade do Protagonista",
+      "status": "active",
+      "description": "Quem é o homem que acordou na biblioteca e por que ele não tem memórias?",
+      "chapters": ["01-o-despertar"],
+      "importance": 10
+    },
+    {
+      "id": "thread-002",
+      "title": "A Natureza do Primeiro Livro",
+      "status": "active",
+      "description": "O que acontece quando algo é escrito no livro encontrado pelo protagonista?",
+      "chapters": ["01-o-despertar", "02-o-labirinto-de-papel"],
+      "importance": 9
+    }
+  ]
+}

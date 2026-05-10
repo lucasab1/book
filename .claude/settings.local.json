@@ -6,7 +6,22 @@
       "Bash(cat /home/user/book/src/lib/entities/store.ts | head -30 && echo \"---\" && ls /home/user/book/src/lib/)",
       "Read(//home/user/book/src/lib/entities/**)",
       "Read(//home/user/book/src/**)",
-      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Books\\\\book\\\\src\\\\pages\")"
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Books\\\\book\\\\src\\\\pages\")",
+      "Bash(npx tsc *)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/electron/package.json'\\).version\\)\")",
+      "Bash(node -e \"const e = require\\('./node_modules/electron'\\); console.log\\(typeof e\\)\")",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\('types:',d.get\\('types'\\),'\\\\ntypings:',d.get\\('typings'\\),'\\\\nmain:',d.get\\('main'\\)\\)\")",
+      "PowerShell(head -20)",
+      "PowerShell(Get-ChildItem \"c:\\\\Books\\\\book\\\\node_modules\\\\electron\" | Select-Object -First 20 | ForEach-Object { $_.Name })",
+      "PowerShell(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\('version:',d.get\\('version'\\),'\\\\ntype:',d.get\\('types'\\),d.get\\('typings'\\)\\)\")",
+      "PowerShell(Get-Content \"c:\\\\Books\\\\book\\\\node_modules\\\\@types\\\\electron\\\\package.json\" -First 5)",
+      "Bash(npx vite *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(where gemini *)",
+      "Bash(gemini --version)",
+      "Bash(gemini --help)"
     ]
   }
 }

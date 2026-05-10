@@ -1,0 +1,14 @@
+{
+  "id": "char-001",
+  "type": "character",
+  "name": "Protagonista",
+  "slug": "protagonista",
+  "description": "O herói da história.",
+  "rich_content": "# Protagonista\n\nDescrição detalhada aqui.",
+  "metadata": {},
+  "tags": ["principal"],
+  "importance": 10,
+  "version": 1,
+  "created_at": "2026-05-10T12:00:00Z",
+  "updated_at": "2026-05-10T12:00:00Z"
+}

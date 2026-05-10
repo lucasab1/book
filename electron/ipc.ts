@@ -197,43 +197,87 @@ function spawnAI(event: Electron.IpcMainInvokeEvent, provider: string, message: 
     let proc: ReturnType<typeof spawn>;
 
     if (process.platform === "win32") {
-      // cmd.exe quote escaping: " → ""; strip bare newlines
-      const q = (s: string) => `"${s.replace(/"/g, '""').replace(/[\r\n]+/g, " ")}"`;
-      const shellCmd = provider === "gemini"
-        ? `gemini -p ${q(message)} -o text`
+      // Use powershell.exe for better command resolution on Windows
+      const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
+      const psCmd = provider === "gemini"
+        ? `gemini --prompt ${q(message)}`
         : `claude --print ${q(message)}`;
-      proc = spawn("cmd.exe", ["/d", "/s", "/c", shellCmd], {
-        cwd, env: { ...process.env }, stdio: ["pipe", "pipe", "pipe"],
-        windowsVerbatimArguments: true,
+      
+      console.log(`[IPC] Spawning AI: ${psCmd}`);
+      proc = spawn("powershell.exe", ["-NoProfile", "-Command", psCmd], {
+        cwd,
+        env: { 
+          ...process.env, 
+          FORCE_COLOR: "1",
+          GEMINI_CLI_TRUST_WORKSPACE: "true",
+          CLAUDE_CODE_TRUST_WORKSPACE: "true"
+        },
+        stdio: ["pipe", "pipe", "pipe"],
       });
     } else {
       const [cmd, ...args] = provider === "gemini"
-        ? ["gemini", "-p", message, "-o", "text"]
+        ? ["gemini", "--prompt", message]
         : ["claude", "--print", message];
-      proc = spawn(cmd, args, { cwd, env: { ...process.env }, stdio: ["pipe", "pipe", "pipe"] });
+      
+      console.log(`[IPC] Spawning AI: ${cmd} ${args.join(" ")}`);
+      proc = spawn(cmd, args, { 
+        cwd, 
+        env: { 
+          ...process.env, 
+          FORCE_COLOR: "1",
+          GEMINI_CLI_TRUST_WORKSPACE: "true",
+          CLAUDE_CODE_TRUST_WORKSPACE: "true"
+        }, 
+        stdio: ["pipe", "pipe", "pipe"] 
+      });
     }
+
+    const pid = proc.pid || Math.random();
+    activeProcesses.set(pid, proc);
+    event.sender.send("ai:start", { pid });
 
     let output = "";
     let errOut = "";
+
     proc.stdout?.on("data", (chunk: Buffer) => {
       const text = chunk.toString();
       output += text;
       event.sender.send("ai:chunk", text);
     });
-    proc.stderr?.on("data", (chunk: Buffer) => { errOut += chunk.toString(); });
+
+    proc.stderr?.on("data", (chunk: Buffer) => {
+      const text = chunk.toString();
+      errOut += text;
+      event.sender.send("ai:chunk", text);
+    });
+
     proc.on("close", (code) => {
+      activeProcesses.delete(pid);
       if (code !== 0 && !output) resolve({ error: errOut || `exited with code ${code}` });
       else resolve({ output });
     });
-    proc.on("error", (err) => resolve({ error: err.message }));
+
+    proc.on("error", (err) => {
+      activeProcesses.delete(pid);
+      resolve({ error: err.message });
+    });
   });
 }
 
 // provider: "claude" | "gemini"
+const activeProcesses = new Map<number, ReturnType<typeof spawn>>();
+
 ipcMain.handle("ai:run", async (event, provider: string, message: string) => {
   const cwd = PROJECT_ROOT;
   if (!cwd) return { error: "No project open." };
   return spawnAI(event, provider, message, cwd);
+});
+
+ipcMain.on("ai:input", (_e, { pid, text }) => {
+  const proc = activeProcesses.get(pid);
+  if (proc && proc.stdin) {
+    proc.stdin.write(text + "\n");
+  }
 });
 
 ipcMain.handle("ai:checkInstalled", async () => {

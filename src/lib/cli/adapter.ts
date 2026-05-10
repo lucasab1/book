@@ -13,16 +13,19 @@ function spawnProcess(
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   return new Promise((resolve, reject) => {
     const spawnOpts: SpawnOptions = { shell: false };
+    console.log(`[DEBUG] Spawning: ${command} ${args.join(" ")}`);
     const proc = spawn(command, args, spawnOpts);
 
     let stdout = "";
     let stderr = "";
     let settled = false;
+    const startTime = Date.now();
 
     const timer = setTimeout(() => {
       if (!settled) {
         settled = true;
         proc.kill("SIGTERM");
+        console.error(`[DEBUG] Timeout after ${Date.now() - startTime}ms`);
         reject(new Error(`Process timed out after ${opts?.timeout ?? DEFAULT_TIMEOUT_MS}ms`));
       }
     }, opts?.timeout ?? DEFAULT_TIMEOUT_MS);
@@ -30,21 +33,21 @@ function spawnProcess(
     proc.stdout?.on("data", (chunk: Buffer) => {
       const text = chunk.toString();
       stdout += text;
+      console.log(`[DEBUG] stdout chunk: ${text.length} chars`);
       opts?.streamCallback?.(text);
     });
 
     proc.stderr?.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
-
-    proc.on("error", (err) => {
-      if (!settled) { settled = true; clearTimeout(timer); reject(err); }
+      const text = chunk.toString();
+      stderr += text;
+      console.error(`[DEBUG] stderr chunk: ${text}`);
     });
 
     proc.on("close", (code) => {
       if (!settled) {
         settled = true;
         clearTimeout(timer);
+        console.log(`[DEBUG] Process closed with code ${code} in ${Date.now() - startTime}ms`);
         resolve({ stdout, stderr, exitCode: code ?? 0 });
       }
     });

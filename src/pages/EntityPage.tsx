@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import AppNav from "../components/AppNav";
 import { api, Entity, Relationship, EntityType, ENTITY_TYPES } from "../lib/api";
 
 const TYPE_LABELS: Record<EntityType, string> = { character: "Character", location: "Location", faction: "Faction", race: "Race", nation: "Nation", religion: "Religion", magic_system: "Magic System", skill: "Skill", item: "Item", creature: "Creature", event: "Event", arc: "Arc", scene: "Scene", timeline: "Timeline", relationship: "Relationship", lore: "Lore" };
@@ -53,11 +52,10 @@ export default function EntityPage() {
     setRels((p) => p.filter((r) => r.id !== relId));
   }
 
-  if (!entity) return <div style={{ background: "var(--bg)", color: "var(--muted)", minHeight: "100vh" }} className="flex items-center justify-center text-sm">Loading…</div>;
+  if (!entity) return <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">Loading…</div>;
 
   return (
-    <div style={{ background: "var(--bg)", color: "var(--text)", minHeight: "100vh" }}>
-      <AppNav />
+    <div className="flex-1 overflow-y-auto">
       <nav style={{ borderBottom: "1px solid var(--border)" }} className="flex items-center gap-3 px-6 py-3">
         <Link to="/world" style={{ color: "var(--muted)" }} className="text-xs hover:opacity-80">World</Link>
         <span style={{ color: "var(--muted)" }} className="text-xs">→</span>

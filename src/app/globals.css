@@ -1,14 +1,25 @@
 @import "tailwindcss";
 
 :root {
+  /* Bookmoth Professional Theme - Light */
+  --bg: #fcfaf7; 
+  --surface: #ffffff;
+  --surface-dark: #1a1a1a;
+  --border: rgba(0,0,0,0.05);
+  --text: #1a1a1a;
+  --muted: rgba(26, 26, 26, 0.4);
+  --accent: #c4a77d;
+  --accent-dim: #b3966c;
+}
+
+.dark {
   --bg: #0d0d0d;
-  --surface: #161616;
-  --surface2: #1e1e1e;
-  --border: #2a2a2a;
-  --text: #e8e6e0;
-  --muted: #6b6b6b;
-  --accent: #c9a84c;
-  --accent-dim: #8a6f2e;
+  --surface: #1a1a1a;
+  --border: rgba(255,255,255,0.08);
+  --text: #e5e5e5;
+  --muted: rgba(229, 229, 229, 0.4);
+  --accent: #d4bc9a;
+  --accent-dim: #c4a77d;
 }
 
 * {
@@ -19,26 +30,41 @@ html,
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Georgia', 'Times New Roman', serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Elegant Serif for the Manuscript */
+.manuscript-editor {
+  font-family: "Georgia", "Merriweather", "Spectral", serif;
 }
 
 ::selection {
   background: var(--accent);
-  color: #000;
+  color: #fff;
 }
 
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
+  background: rgba(0,0,0,0.1);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-dim);
 }
 
 textarea, input {
   font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
