@@ -189,27 +189,43 @@ ipcMain.handle("import:assets", (_e, filePaths: string[]) => {
 
 // ─── AI runner (Claude + Gemini) ─────────────────────────────────────────────
 
-function spawnAI(event: Electron.IpcMainInvokeEvent, cmd: string, args: string[], cwd: string) {
+// On Windows, spawn("cmd", [..., message]) joins args with spaces — no quoting.
+// So "Leia o texto" becomes --print Leia o texto and --print only gets "Leia".
+// Fix: use cmd.exe explicitly with windowsVerbatimArguments so we control quoting.
+function spawnAI(event: Electron.IpcMainInvokeEvent, provider: string, message: string, cwd: string) {
   return new Promise<{ output?: string; error?: string }>((resolve) => {
-    const proc = spawn(cmd, args, {
-      cwd,
-      env: { ...process.env },
-      stdio: ["pipe", "pipe", "pipe"],
-      shell: process.platform === "win32",
-    });
+    let proc: ReturnType<typeof spawn>;
+
+    if (process.platform === "win32") {
+      // cmd.exe quote escaping: " → ""; strip bare newlines
+      const q = (s: string) => `"${s.replace(/"/g, '""').replace(/[\r\n]+/g, " ")}"`;
+      const shellCmd = provider === "gemini"
+        ? `gemini -p ${q(message)} -o text`
+        : `claude --print ${q(message)}`;
+      proc = spawn("cmd.exe", ["/d", "/s", "/c", shellCmd], {
+        cwd, env: { ...process.env }, stdio: ["pipe", "pipe", "pipe"],
+        windowsVerbatimArguments: true,
+      });
+    } else {
+      const [cmd, ...args] = provider === "gemini"
+        ? ["gemini", "-p", message, "-o", "text"]
+        : ["claude", "--print", message];
+      proc = spawn(cmd, args, { cwd, env: { ...process.env }, stdio: ["pipe", "pipe", "pipe"] });
+    }
+
     let output = "";
     let errOut = "";
-    proc.stdout.on("data", (chunk: Buffer) => {
+    proc.stdout?.on("data", (chunk: Buffer) => {
       const text = chunk.toString();
       output += text;
       event.sender.send("ai:chunk", text);
     });
-    proc.stderr.on("data", (chunk: Buffer) => { errOut += chunk.toString(); });
+    proc.stderr?.on("data", (chunk: Buffer) => { errOut += chunk.toString(); });
     proc.on("close", (code) => {
-      if (code !== 0 && !output) resolve({ error: errOut || `${cmd} exited with code ${code}` });
+      if (code !== 0 && !output) resolve({ error: errOut || `exited with code ${code}` });
       else resolve({ output });
     });
-    proc.on("error", (err) => resolve({ error: `Could not start ${cmd}: ${err.message}` }));
+    proc.on("error", (err) => resolve({ error: err.message }));
   });
 }
 
@@ -217,10 +233,7 @@ function spawnAI(event: Electron.IpcMainInvokeEvent, cmd: string, args: string[]
 ipcMain.handle("ai:run", async (event, provider: string, message: string) => {
   const cwd = PROJECT_ROOT;
   if (!cwd) return { error: "No project open." };
-  if (provider === "gemini") {
-    return spawnAI(event, "gemini", ["-p", message, "-o", "text"], cwd);
-  }
-  return spawnAI(event, "claude", ["--print", message], cwd);
+  return spawnAI(event, provider, message, cwd);
 });
 
 ipcMain.handle("ai:checkInstalled", async () => {
@@ -233,11 +246,11 @@ ipcMain.handle("ai:checkInstalled", async () => {
   return { claude, gemini };
 });
 
-// Keep old claude:run / claude:checkInstalled for backwards compat
+// Keep old claude:run for backwards compat
 ipcMain.handle("claude:run", async (event, message: string) => {
   const cwd = PROJECT_ROOT;
   if (!cwd) return { error: "No project open." };
-  return spawnAI(event, "claude", ["--print", message], cwd);
+  return spawnAI(event, "claude", message, cwd);
 });
 
 ipcMain.handle("claude:checkInstalled", () => {

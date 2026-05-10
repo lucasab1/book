@@ -118,7 +118,7 @@ export default function ClaudePanel({ onClose }: { onClose: () => void }) {
 
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
 
-    const prompt = buildPrompt([...messagesRef.current, userMsg], raw);
+    const prompt = buildPrompt(messagesRef.current, raw);
 
     const unsub = api.aiOnChunk((chunk) => {
       setMessages((prev) => {
