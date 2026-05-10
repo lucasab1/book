@@ -1,31 +1,23 @@
-export interface VoiceProfile {
-  summary: string;
-  sentenceRhythm: string;
-  vocabularyStyle: string;
-  dialoguePatterns: string;
-  narrativeTone: string;
-  distinctiveQuirks: string;
-  analyzedAt: string;
-}
-
-export interface Chapter {
-  id: string;
-  title: string;
-  brief: string;
-  content: string;
-  order: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Project {
-  id: string;
+export interface ProjectMeta {
   title: string;
   genre: string;
   synopsis: string;
-  voiceProfile: VoiceProfile | null;
-  sampleText: string;
-  chapters: Chapter[];
   createdAt: string;
+}
+
+export interface ChapterFile {
+  slug: string;       // filename without .md
+  title: string;
+  brief: string;
+  order: number;
+  wordCount: number;
+  updatedAt: string;
+  hasVoiceDraft: boolean;
+}
+
+export interface KbEntry {
+  path: string;       // relative to kb/
+  name: string;
+  category: "characters" | "world" | "style" | "continuity" | "other";
   updatedAt: string;
 }

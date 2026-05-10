@@ -1,0 +1,237 @@
+"use client";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { KbEntry } from "@/lib/types";
+import ClaudeCodePanel from "@/components/ClaudeCodePanel";
+
+const CATEGORY_COLORS: Record<string, string> = {
+  characters: "#c9a84c",
+  world: "#7eb8c9",
+  style: "#b89ecc",
+  continuity: "#90c97e",
+  other: "#888",
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  characters: "Characters",
+  world: "World & lore",
+  style: "Voice & style",
+  continuity: "Continuity",
+  other: "Other",
+};
+
+export default function KbPage() {
+  const [entries, setEntries] = useState<KbEntry[]>([]);
+  const [selected, setSelected] = useState<KbEntry | null>(null);
+  const [content, setContent] = useState("");
+  const [saved, setSaved] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [newPath, setNewPath] = useState("");
+
+  useEffect(() => {
+    fetch("/api/kb").then((r) => r.json()).then(setEntries);
+  }, []);
+
+  async function loadEntry(entry: KbEntry) {
+    setSelected(entry);
+    const res = await fetch(`/api/kb/${entry.path.replace(/\.md$/, "")}`);
+    const data = await res.json();
+    setContent(data.content || "");
+    setSaved(true);
+  }
+
+  async function saveEntry() {
+    if (!selected) return;
+    await fetch(`/api/kb/${selected.path.replace(/\.md$/, "")}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+    setSaved(true);
+    const res = await fetch("/api/kb");
+    setEntries(await res.json());
+  }
+
+  async function deleteEntry(entry: KbEntry) {
+    if (!confirm(`Delete ${entry.name}?`)) return;
+    await fetch(`/api/kb/${entry.path.replace(/\.md$/, "")}`, { method: "DELETE" });
+    if (selected?.path === entry.path) { setSelected(null); setContent(""); }
+    const res = await fetch("/api/kb");
+    setEntries(await res.json());
+  }
+
+  async function createEntry() {
+    if (!newPath.trim()) return;
+    const clean = newPath.trim().replace(/\.md$/, "").replace(/[^a-z0-9/_-]/gi, "-");
+    await fetch(`/api/kb/${clean}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: `# ${clean.split("/").pop()}\n\n` }),
+    });
+    setCreating(false);
+    setNewPath("");
+    const res = await fetch("/api/kb");
+    const updated: KbEntry[] = await res.json();
+    setEntries(updated);
+    const newEntry = updated.find((e) => e.path.replace(/\.md$/, "") === clean);
+    if (newEntry) loadEntry(newEntry);
+  }
+
+  const grouped = entries.reduce<Record<string, KbEntry[]>>((acc, e) => {
+    (acc[e.category] = acc[e.category] || []).push(e);
+    return acc;
+  }, {});
+
+  return (
+    <div style={{ background: "var(--bg)", color: "var(--text)", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <nav style={{ borderBottom: "1px solid var(--border)" }} className="flex items-center justify-between px-6 py-4 shrink-0">
+        <div className="flex items-center gap-4">
+          <Link href="/" style={{ color: "var(--accent)" }} className="text-base tracking-widest uppercase font-bold">
+            Bookmoth
+          </Link>
+          <div style={{ color: "var(--muted)" }} className="text-xs flex items-center gap-3">
+            <Link href="/manuscript" className="hover:opacity-80">Manuscript</Link>
+            <span>·</span>
+            <span style={{ color: "var(--text)" }} className="font-bold">Knowledge base</span>
+          </div>
+        </div>
+        <div className="relative">
+          <ClaudeCodePanel />
+        </div>
+      </nav>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <aside style={{ borderRight: "1px solid var(--border)", background: "var(--surface)", width: "240px", minWidth: "240px" }} className="flex flex-col overflow-y-auto">
+          <div style={{ borderBottom: "1px solid var(--border)" }} className="p-4 flex gap-2">
+            <button
+              onClick={() => setCreating(true)}
+              style={{ background: "var(--accent)", color: "#000", flex: 1 }}
+              className="text-xs py-2 rounded font-bold hover:opacity-90"
+            >
+              + New entry
+            </button>
+          </div>
+
+          {creating && (
+            <div style={{ borderBottom: "1px solid var(--border)" }} className="p-4">
+              <p style={{ color: "var(--muted)" }} className="text-xs mb-2">
+                Path (e.g. <code>characters/elena</code>)
+              </p>
+              <input
+                value={newPath}
+                onChange={(e) => setNewPath(e.target.value)}
+                autoFocus
+                placeholder="characters/name"
+                style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)" }}
+                className="w-full px-3 py-1.5 rounded text-xs outline-none focus:border-amber-600 mb-2"
+                onKeyDown={(e) => e.key === "Enter" && createEntry()}
+              />
+              <div className="flex gap-2">
+                <button onClick={createEntry} style={{ background: "var(--accent)", color: "#000" }} className="text-xs px-3 py-1.5 rounded font-bold">
+                  Create
+                </button>
+                <button onClick={() => { setCreating(false); setNewPath(""); }} style={{ color: "var(--muted)" }} className="text-xs px-2">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {Object.keys(CATEGORY_LABELS).map((cat) => {
+            const items = grouped[cat];
+            if (!items?.length) return null;
+            return (
+              <div key={cat} style={{ borderBottom: "1px solid var(--border)" }} className="p-3">
+                <p style={{ color: CATEGORY_COLORS[cat] }} className="text-xs font-bold uppercase tracking-widest mb-2">
+                  {CATEGORY_LABELS[cat]}
+                </p>
+                {items.map((entry) => (
+                  <div key={entry.path} className="flex items-center group">
+                    <button
+                      onClick={() => loadEntry(entry)}
+                      style={{ color: selected?.path === entry.path ? "var(--text)" : "var(--muted)" }}
+                      className="flex-1 text-left text-sm py-1 hover:opacity-80 truncate"
+                    >
+                      {entry.name}
+                    </button>
+                    <button
+                      onClick={() => deleteEntry(entry)}
+                      style={{ color: "var(--muted)" }}
+                      className="text-xs opacity-0 group-hover:opacity-100 hover:text-red-400 px-1 shrink-0"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+
+          {entries.length === 0 && !creating && (
+            <p style={{ color: "var(--muted)" }} className="text-xs p-4 leading-relaxed">
+              No KB entries yet. Use <code style={{ color: "var(--text)" }}>/kb</code> in Claude Code or create one manually.
+            </p>
+          )}
+
+          <div style={{ borderTop: "1px solid var(--border)", color: "var(--muted)" }} className="p-4 mt-auto text-xs">
+            <p className="mb-1">Claude Code: <code style={{ color: "var(--accent)" }}>/kb</code></p>
+            <p>Files: <code style={{ color: "var(--text)" }}>kb/**/*.md</code></p>
+          </div>
+        </aside>
+
+        {/* Editor */}
+        {selected ? (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div style={{ borderBottom: "1px solid var(--border)" }} className="flex items-center justify-between px-6 py-3 shrink-0">
+              <div className="flex items-center gap-3">
+                <span style={{ color: CATEGORY_COLORS[selected.category] }} className="text-xs font-bold uppercase tracking-widest">
+                  {CATEGORY_LABELS[selected.category]}
+                </span>
+                <span style={{ color: "var(--border)" }}>/</span>
+                <span className="text-sm">{selected.name}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span style={{ color: saved ? "var(--muted)" : "var(--accent)" }} className="text-xs">
+                  {saved ? "Saved" : "Unsaved"}
+                </span>
+                <button
+                  onClick={saveEntry}
+                  style={{ background: "var(--accent)", color: "#000" }}
+                  className="text-xs px-4 py-1.5 rounded font-bold hover:opacity-90"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+            <textarea
+              value={content}
+              onChange={(e) => { setContent(e.target.value); setSaved(false); }}
+              style={{
+                background: "var(--bg)",
+                color: "var(--text)",
+                border: "none",
+                resize: "none",
+                fontFamily: "Georgia, 'Times New Roman', serif",
+                fontSize: "0.95rem",
+                lineHeight: "1.8",
+                flex: 1,
+              }}
+              className="w-full px-16 py-10 outline-none"
+              spellCheck={false}
+            />
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <p style={{ color: "var(--muted)" }} className="text-lg mb-4">Select a KB entry to edit</p>
+              <p style={{ color: "var(--muted)" }} className="text-sm">
+                Or use <code style={{ color: "var(--accent)" }}>/kb</code> in Claude Code to create entries automatically.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
