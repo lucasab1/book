@@ -12,7 +12,7 @@ function spawnProcess(
   opts?: { timeout?: number; streamCallback?: (chunk: string) => void }
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   return new Promise((resolve, reject) => {
-    const spawnOpts: SpawnOptions = { shell: false };
+    const spawnOpts: SpawnOptions = { shell: process.platform === "win32" };
     console.log(`[DEBUG] Spawning: ${command} ${args.join(" ")}`);
     const proc = spawn(command, args, spawnOpts);
 
@@ -41,6 +41,15 @@ function spawnProcess(
       const text = chunk.toString();
       stderr += text;
       console.error(`[DEBUG] stderr chunk: ${text}`);
+    });
+
+    proc.on("error", (err) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        console.error(`[DEBUG] Process error:`, err.message);
+        reject(err);
+      }
     });
 
     proc.on("close", (code) => {
