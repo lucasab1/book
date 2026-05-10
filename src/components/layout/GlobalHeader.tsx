@@ -113,31 +113,10 @@ export default function GlobalHeader() {
       <div className="flex items-center gap-2">
         <button 
           onClick={() => setIsDarkMode(!isDarkMode)}
-          className="p-2 text-[var(--text)]/40 hover:text-[var(--text)] transition-colors"
+          className="p-2 text-[var(--text)]/40 hover:text-[var(--accent)] transition-colors rounded-full hover:bg-[var(--text)]/5"
         >
-          {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
+          {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
         </button>
-        
-        {[
-          { icon: <Cloud size={14} />, label: "Cloud", alert: !isSyncing, spinning: isSyncing },
-          { icon: <Database size={14} />, label: "API / LLM", active: isPanelOpen },
-          { icon: <Download size={14} />, label: "Save" },
-          { icon: <Upload size={14} />, label: "Load" },
-          { icon: <ExternalLink size={14} />, label: "Export", primary: true },
-        ].map((btn, i) => (
-          <button 
-            key={i} 
-            onClick={() => handleUtilityClick(btn.label)}
-            className={`px-3 py-1.5 rounded-lg border border-[var(--text)]/10 text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 transition-all hover:bg-[var(--text)]/5
-              ${btn.primary ? 'bg-[var(--accent)] border-[var(--accent)] text-white hover:bg-[var(--accent-dim)]' : 'bg-[var(--surface)] text-[var(--text)]/60'}
-              ${btn.active ? 'ring-2 ring-[var(--accent)] text-[var(--text)]' : ''}
-              ${btn.spinning ? 'opacity-50' : ''}`}
-          >
-            <div className={btn.spinning ? 'animate-spin' : ''}>{btn.icon}</div>
-            <span className="hidden xl:inline">{btn.label}</span>
-            {btn.alert && <div className="w-1.5 h-1.5 rounded-full bg-red-500" />}
-          </button>
-        ))}
       </div>
 
       {/* New Project Modal */}

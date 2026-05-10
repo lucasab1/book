@@ -1,25 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  /* Bookmoth Professional Theme - Light */
-  --bg: #fcfaf7; 
+  /* Bookmoth Premium Theme - Light (Warm Neutrals) */
+  --bg: #f9f7f4; 
   --surface: #ffffff;
-  --surface-dark: #1a1a1a;
-  --border: rgba(0,0,0,0.05);
-  --text: #1a1a1a;
-  --muted: rgba(26, 26, 26, 0.4);
-  --accent: #c4a77d;
-  --accent-dim: #b3966c;
+  --surface-dark: #121212;
+  --border: rgba(0, 0, 0, 0.06);
+  --text: #2a2a2a;
+  --muted: rgba(42, 42, 42, 0.45);
+  --accent: #b38b59;
+  --accent-dim: #d1b48c;
 }
 
 .dark {
-  --bg: #0d0d0d;
-  --surface: #1a1a1a;
-  --border: rgba(255,255,255,0.08);
-  --text: #e5e5e5;
-  --muted: rgba(229, 229, 229, 0.4);
-  --accent: #d4bc9a;
-  --accent-dim: #c4a77d;
+  /* Bookmoth Cinematic Dark Mode */
+  --bg: #0f1011;
+  --surface: #17181a;
+  --border: rgba(255, 255, 255, 0.06);
+  --text: #ebebe9;
+  --muted: rgba(235, 235, 233, 0.4);
+  --accent: #c4a77d;
+  --accent-dim: #9e8562;
 }
 
 * {
@@ -32,12 +33,12 @@ body {
   color: var(--text);
   font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s ease;
 }
 
 /* Elegant Serif for the Manuscript */
 .manuscript-editor {
-  font-family: "Georgia", "Merriweather", "Spectral", serif;
+  font-family: "Literata", "Georgia", "Merriweather", serif;
 }
 
 ::selection {
@@ -60,6 +61,13 @@ body {
   background: var(--accent-dim);
 }
 
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.2);
+}
+
 textarea, input {
   font-family: inherit;
   transition: all 0.2s ease;
@@ -67,4 +75,25 @@ textarea, input {
 
 button {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Premium UI Utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+}
+
+.dark .glass-panel {
+  background: rgba(23, 24, 26, 0.6);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.shadow-elegant {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+.dark .shadow-elegant {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1);
 }

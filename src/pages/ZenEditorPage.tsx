@@ -144,7 +144,7 @@ export default function ZenEditorPage() {
         {/* Editor Area */}
         <div className="flex-1 overflow-y-auto relative scroll-smooth px-8">
           {/* Floating Toolbar */}
-          <div className="sticky top-6 mx-auto w-fit z-20 flex items-center gap-1 bg-[var(--surface)]/80 backdrop-blur-md border border-[var(--border)] p-1 rounded-xl shadow-xl shadow-black/5">
+          <div className="sticky top-6 mx-auto w-fit z-20 flex items-center gap-1 glass-panel p-1 rounded-2xl shadow-elegant">
             {[
               { icon: <Italic size={16} />, label: "Italicise", action: () => applyStyle("italic") },
               { label: "* * *", action: () => { setContent(prev => prev + "\n\n* * *\n\n"); } },
@@ -152,19 +152,19 @@ export default function ZenEditorPage() {
               { icon: <Redo size={16} />, action: () => document.execCommand("redo") },
               { icon: <Maximize2 size={16} />, label: "Focus", action: () => textAreaRef.current?.requestFullscreen() },
             ].map((tool, i) => (
-              <button key={i} onClick={tool.action} className="p-2 hover:bg-[var(--text)]/5 rounded-lg text-[var(--text)]/40 hover:text-[var(--text)] transition-all flex items-center gap-2 px-3">
+              <button key={i} onClick={tool.action} className="p-2 hover:bg-[var(--text)]/5 rounded-xl text-[var(--text)]/40 hover:text-[var(--text)] transition-all flex items-center gap-2 px-3">
                 {tool.icon}
                 {tool.label && <span className="text-[10px] font-bold italic">{tool.label}</span>}
               </button>
             ))}
           </div>
 
-          <div className="max-w-[700px] mx-auto pt-20 pb-40">
-            <div className="mb-12 group relative">
-              <div className="flex items-center justify-between mb-2">
+          <div className="max-w-[650px] mx-auto pt-24 pb-40">
+            <div className="mb-16 group relative">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#c4a77d]">Chapter {currentChapterIndex}</span>
-                  <Star size={14} className="text-[#c4a77d] fill-[#c4a77d] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[var(--accent)]">Chapter {currentChapterIndex}</span>
+                  <Star size={14} className="text-[var(--accent)] fill-[var(--accent)] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" />
                 </div>
                 
                 {/* Version Controls */}
@@ -181,7 +181,7 @@ export default function ZenEditorPage() {
                 value={title}
                 onChange={handleTitleChange}
                 placeholder="Chapter Title"
-                className="w-full bg-transparent border-none outline-none font-serif text-5xl font-medium text-[var(--text)] placeholder:opacity-10"
+                className="w-full bg-transparent border-none outline-none manuscript-editor text-5xl font-medium text-[var(--text)] placeholder:opacity-10 tracking-tight"
               />
             </div>
 
@@ -190,7 +190,7 @@ export default function ZenEditorPage() {
               value={content}
               onChange={handleEditorChange}
               placeholder="The drive back lasted twenty-three minutes. Martin knew this because he counted the seconds..."
-              className="w-full min-h-[600px] bg-transparent border-none outline-none font-serif text-xl leading-[1.8] text-[var(--text)] placeholder:opacity-20 resize-none overflow-hidden"
+              className="w-full min-h-[600px] bg-transparent border-none outline-none manuscript-editor text-[1.35rem] leading-[2.2] text-[var(--text)] placeholder:opacity-20 resize-none overflow-hidden"
               spellCheck={false}
             />
           </div>
