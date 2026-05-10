@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import AppNav from "../components/AppNav";
 import { api, Entity, EntityType, ENTITY_TYPES } from "../lib/api";
 
 const TYPE_LABELS: Record<EntityType, string> = { character: "Characters", location: "Locations", faction: "Factions", race: "Races", nation: "Nations", religion: "Religions", magic_system: "Magic Systems", skill: "Skills", item: "Items", creature: "Creatures", event: "Events", arc: "Arcs", scene: "Scenes", timeline: "Timelines", relationship: "Relationships", lore: "Lore" };
@@ -55,8 +54,7 @@ export default function WorldPage() {
 
   return (
     <div style={{ background: "var(--bg)", color: "var(--text)", minHeight: "100vh" }}>
-      <AppNav />
-      <div className="flex h-[calc(100vh-49px)]">
+      <div className="flex h-[calc(100vh)]">
         <aside style={{ borderRight: "1px solid var(--border)", background: "var(--surface)", width: "200px", minWidth: "200px" }} className="flex flex-col overflow-y-auto">
           <div className="p-3">
             <button onClick={() => setShowNew(true)} style={{ background: "var(--accent)", color: "#000" }} className="w-full text-xs py-2 rounded font-bold">+ New entity</button>

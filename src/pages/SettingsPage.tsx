@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import AppNav from "../components/AppNav";
 import { api, ProviderConfig, CLIProvider } from "../lib/api";
 
 export default function SettingsPage() {
@@ -42,7 +41,6 @@ export default function SettingsPage() {
 
   return (
     <div className="h-screen w-full overflow-y-auto" style={{ background: "var(--bg)", color: "var(--text)" }}>
-      <AppNav />
       <main className="max-w-3xl mx-auto px-8 py-16">
         <div className="flex items-center justify-between mb-12">
           <div>
