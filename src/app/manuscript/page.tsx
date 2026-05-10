@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ChapterFile, ProjectMeta } from "@/lib/types";
 import ClaudeCodePanel from "@/components/ClaudeCodePanel";
+import AppNav from "@/components/AppNav";
 
 export default function ManuscriptPage() {
   const [project, setProject] = useState<ProjectMeta | null>(null);
@@ -59,17 +60,13 @@ export default function ManuscriptPage() {
 
   return (
     <div style={{ background: "var(--bg)", color: "var(--text)", minHeight: "100vh" }}>
-      {/* Nav */}
-      <nav style={{ borderBottom: "1px solid var(--border)" }} className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-4">
-          <Link href="/" style={{ color: "var(--accent)" }} className="text-lg tracking-widest uppercase font-bold">
-            Bookmoth
-          </Link>
-          <div style={{ color: "var(--muted)" }} className="text-xs flex items-center gap-3">
-            <span className="font-bold" style={{ color: "var(--text)" }}>Manuscript</span>
-            <span>·</span>
-            <Link href="/manuscript/kb" className="hover:opacity-80">Knowledge base</Link>
-          </div>
+      <AppNav />
+      {/* Sub-nav */}
+      <nav style={{ borderBottom: "1px solid var(--border)" }} className="flex items-center justify-between px-6 py-3">
+        <div style={{ color: "var(--muted)" }} className="text-xs flex items-center gap-3">
+          <span className="font-bold" style={{ color: "var(--text)" }}>Chapters</span>
+          <span>·</span>
+          <Link href="/manuscript/kb" className="hover:opacity-80">Knowledge base</Link>
         </div>
         <div className="relative">
           <ClaudeCodePanel />
