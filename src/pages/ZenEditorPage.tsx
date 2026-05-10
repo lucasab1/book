@@ -7,7 +7,7 @@ import {
   Redo, 
   Maximize2
 } from "lucide-react";
-import { api, ChapterFile } from "../lib/api";
+import { api, ChapterFile, Skill } from "../lib/api";
 import { useAI } from "../lib/context/AIContext";
 import ChapterSidebar from "../components/layout/ChapterSidebar";
 import ControlPanel from "../components/layout/ControlPanel";
@@ -17,6 +17,7 @@ export default function ZenEditorPage() {
   const { sendMessage, setPanelOpen } = useAI();
   
   const [chapters, setChapters] = useState<ChapterFile[]>([]);
+  const [skills, setSkills] = useState<Skill[]>([]);
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [brief, setBrief] = useState("");
@@ -61,6 +62,7 @@ export default function ZenEditorPage() {
     api.projectGet().then(p => {
       if (p) setGlobalNotes(p.globalNotes || "");
     });
+    api.skillsList().then(setSkills);
     
     if (slug) {
       api.chaptersGet(slug).then((data) => {
@@ -113,16 +115,16 @@ export default function ZenEditorPage() {
   const totalWords = chapters.reduce((acc, ch) => acc + ch.wordCount, 0);
   const currentChapterIndex = chapters.findIndex(c => c.slug === slug) + 1;
 
-  const handleAction = (action: string) => {
+  const handleAction = (action: string, skillId?: string) => {
     setPanelOpen(true);
     if (action === "Ask the Editor") return;
 
     let prompt = "";
-    if (action.includes("Polish / Lyric Pass")) prompt = `/write polish and apply lyric pass to chapter ${title}. Use the current brief as guidance.`;
-    else if (action.includes("Refine Writing Profile")) prompt = `/kb update style/voice-profile.md based on the prose in chapter ${title}.`;
-    else if (action.includes("Refresh Bible")) prompt = `/kb update all relevant entries based on the events in chapter ${title}.`;
-    else if (action.includes("Export Chapter")) prompt = `Please format and prepare chapter ${title} for export.`;
-    else if (action.includes("Export Manuscript")) prompt = `Please prepare the full manuscript for export, ensuring all chapters are ordered correctly.`;
+    if (skillId) {
+      prompt = `/skill ${skillId} on chapter ${title}`;
+    } else if (action.includes("Polish / Lyric Pass")) {
+      prompt = `/write polish and apply lyric pass to chapter ${title}. Use the current brief as guidance.`;
+    }
     
     if (prompt) sendMessage(prompt);
   };
@@ -213,6 +215,7 @@ export default function ZenEditorPage() {
         totalWords={totalWords} 
         chapterBrief={brief} 
         globalNotes={globalNotes}
+        skills={skills}
         onBriefChange={(val) => {
           setBrief(val);
           scheduleSave(content, title, val);

@@ -46,6 +46,8 @@ declare global {
       providersSet: (config: object) => Promise<{ ok: boolean }>;
       providersCheck: (providerId: string) => Promise<{ available: boolean }>;
 
+      skillsList: () => Promise<Skill[]>;
+
       // Import
       importPickFiles: (filters: { name: string; extensions: string[] }[]) => Promise<string[]>;
       importChapters: (filePaths: string[]) => Promise<string[]>;
@@ -161,6 +163,11 @@ export interface CLIProvider {
 export interface ProviderConfig {
   providers: CLIProvider[];
   defaultProviders: Record<string, string>;
+}
+
+export interface Skill {
+  id: string;
+  title: string;
 }
 
 // Re-export window.api directly for use in components

@@ -52,6 +52,9 @@ const api = {
   providersSet: (config: object) => ipcRenderer.invoke("providers:set", config),
   providersCheck: (providerId: string) => ipcRenderer.invoke("providers:check", providerId),
 
+  // Skills
+  skillsList: () => ipcRenderer.invoke("skills:list"),
+
   // Import
   importPickFiles: (filters: { name: string; extensions: string[] }[]) =>
     ipcRenderer.invoke("import:pickFiles", filters),

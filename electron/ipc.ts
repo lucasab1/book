@@ -450,6 +450,19 @@ ipcMain.handle("assets:delete", (_e, id: string) => {
   s.assets = s.assets.filter((x) => x.id !== id); writeJson(ASSETS_IDX, s); return { ok: true };
 });
 
+// ─── SKILLS ────────────────────────────────────────────────────────────────
+ipcMain.handle("skills:list", () => {
+  const skillsDir = path.join(dirs().config, "..", ".claude", "skills");
+  if (!fs.existsSync(skillsDir)) return [];
+  return fs.readdirSync(skillsDir, { withFileTypes: true })
+    .filter(dirent => dirent.isDirectory())
+    .map(dirent => {
+      const id = dirent.name;
+      const title = id.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+      return { id, title };
+    });
+});
+
 // ─── PROVIDERS ───────────────────────────────────────────────────────────────
 const BUILT_IN_PROVIDERS = [
   { id: "claude-code", name: "Claude Code (Pro)", command: "claude", args: ["--print", "--output-format", "text"], type: "claude-code", capabilities: ["write","summarize","analyze","critique","extract"], maxContextTokens: 200000, costTier: "pro", streamOutput: false, promptFormat: "raw", enabled: true },

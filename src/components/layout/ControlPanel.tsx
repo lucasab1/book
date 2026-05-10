@@ -1,5 +1,5 @@
 import { PenTool } from "lucide-react";
-import { ChapterFile } from "../../lib/api";
+import { ChapterFile, Skill } from "../../lib/api";
 
 interface Props {
   chapters: ChapterFile[];
@@ -7,9 +7,10 @@ interface Props {
   totalWords: number;
   chapterBrief: string;
   globalNotes: string;
+  skills?: Skill[];
   onBriefChange: (val: string) => void;
   onGlobalNotesChange: (val: string) => void;
-  onActionClick: (action: string) => void;
+  onActionClick: (action: string, skillId?: string) => void;
 }
 
 export default function ControlPanel({ 
@@ -18,6 +19,7 @@ export default function ControlPanel({
   totalWords, 
   chapterBrief, 
   globalNotes,
+  skills = [],
   onBriefChange,
   onGlobalNotesChange,
   onActionClick 
@@ -50,19 +52,13 @@ export default function ControlPanel({
         >
           Ask the Editor...
         </button>
-        {[
-          `Polish / Lyric Pass — Ch ${currentIndex}`,
-          `Refine Writing Profile — Ch ${currentIndex}`,
-          `⚠️ Refresh Bible — Ch ${currentIndex}`,
-          `Export Chapter — Ch ${currentIndex}`,
-          `Export Manuscript`,
-        ].map((action, i) => (
+        {skills.map((skill) => (
           <button 
-            key={i} 
-            onClick={() => onActionClick(action)}
+            key={skill.id} 
+            onClick={() => onActionClick("Skill", skill.id)}
             className="w-full py-3 bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] text-[10px] font-bold rounded-xl hover:bg-[var(--text)]/5 transition-all text-left px-4"
           >
-            {action}
+            {skill.title}
           </button>
         ))}
       </section>
