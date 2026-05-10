@@ -52,28 +52,17 @@ function parseContent(raw: string) {
   let content = raw;
   let thought = "";
 
-  // 1. Handle <thought> tags (standard for Claude Code)
-  if (raw.includes("<thought>")) {
-    const endTag = "</thought>";
-    const endIndex = raw.indexOf(endTag);
-    
-    if (endIndex !== -1) {
-      // Complete tag
-      thought = raw.substring(raw.indexOf("<thought>") + 9, endIndex).trim();
-      content = (raw.substring(0, raw.indexOf("<thought>")) + raw.substring(endIndex + 10)).trim();
-    } else {
-      // Partial tag (still thinking)
-      thought = raw.substring(raw.indexOf("<thought>") + 9).trim();
-      content = raw.substring(0, raw.indexOf("<thought>")).trim();
-    }
-  } 
-  // 2. Handle markdown headers or specific markers
-  else {
-    const thinkingMatch = raw.match(/^(?:Thinking|Reasoning|Thought):([\s\S]*?)(?:\n\n|#|$)/i);
-    if (thinkingMatch) {
-       thought = thinkingMatch[1];
-       content = raw.replace(/^(?:Thinking|Reasoning|Thought):[\s\S]*?(?:\n\n|#|$)/i, "").trim();
-    }
+  const thoughtMatch = raw.match(/<thought>([\s\S]*?)<\/thought>/) || raw.match(/<thought>([\s\S]*)$/);
+  if (thoughtMatch) {
+     thought = thoughtMatch[1].trim();
+     content = raw.replace(/<thought>[\s\S]*?(<\/thought>|$)/, "").trim();
+     return { content, thought };
+  }
+
+  const thinkingMatch = raw.match(/(?:^|\n)(?:\*\*Thinking:\*\*|\*Thinking\*|Thinking:|Thought:|\[Thought\]|```thought)([\s\S]*?)(?:\n\n|```|$)/i);
+  if (thinkingMatch) {
+     thought = thinkingMatch[1].trim();
+     content = raw.replace(/(?:^|\n)(?:\*\*Thinking:\*\*|\*Thinking\*|Thinking:|Thought:|\[Thought\]|```thought)[\s\S]*?(?:\n\n|```|$)/i, "").trim();
   }
 
   return { content, thought };

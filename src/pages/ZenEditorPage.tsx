@@ -56,6 +56,10 @@ export default function ZenEditorPage() {
 
   useEffect(() => {
     loadChapters();
+    api.projectGet().then(p => {
+      if (p) setGlobalNotes(p.globalNotes || "");
+    });
+    
     if (slug) {
       api.chaptersGet(slug).then((data) => {
         if (data) {
@@ -71,6 +75,15 @@ export default function ZenEditorPage() {
   const loadChapters = async () => {
     const list = await api.chaptersList();
     setChapters(list);
+  };
+
+  const handleGlobalNotesChange = (val: string) => {
+    setGlobalNotes(val);
+    if (saveProjectTimer.current) clearTimeout(saveProjectTimer.current);
+    saveProjectTimer.current = setTimeout(async () => {
+      const p = await api.projectGet();
+      if (p) await api.projectSet({ ...p, globalNotes: val });
+    }, 2000);
   };
 
   const scheduleSave = (c: string, t: string, b: string) => {

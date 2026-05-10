@@ -82,9 +82,12 @@ export default function ControlPanel({
             <h3 className="text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--text)]/30">General Notes</h3>
             <PenTool size={12} className="text-[var(--text)]/20" />
           </div>
-          <div className="w-full h-40 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 text-[11px] font-serif leading-relaxed text-[var(--text)] opacity-30 italic">
-            Global story notes and reminders...
-          </div>
+          <textarea 
+            value={globalNotes}
+            onChange={(e) => onGlobalNotesChange(e.target.value)}
+            placeholder="Global story notes and reminders..."
+            className="w-full h-40 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 text-[11px] font-serif leading-relaxed text-[var(--text)] outline-none focus:ring-1 ring-[var(--accent)]/30 resize-none"
+          />
         </div>
       </section>
     </aside>

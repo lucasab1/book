@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAI, AIProviderID, Message } from "../lib/context/AIContext";
+import { Paperclip } from "lucide-react";
 
 const PROVIDERS: { id: AIProviderID; label: string; color: string }[] = [
   { id: "claude", label: "Claude", color: "#d97706" },
@@ -165,7 +166,7 @@ export default function ClaudePanel() {
                 <div className="flex flex-col gap-3">
                   {m.thought && (
                     <div className="text-[11px] text-muted italic bg-surface2/30 p-3 rounded-xl border border-border/50 leading-relaxed">
-                      <span className="block text-[8px] font-black uppercase tracking-widest mb-1 opacity-50 not-italic">Thought</span>
+                      <span className="block text-[8px] font-black uppercase tracking-widest mb-1 opacity-50 not-italic">Thought Process</span>
                       {m.thought}
                       {m.streaming && !m.content && <span className="inline-block w-1 h-3 bg-accent/20 ml-1 animate-pulse align-middle" />}
                     </div>
@@ -209,6 +210,16 @@ export default function ClaudePanel() {
           <div className="text-[10px] text-red-500 font-bold uppercase tracking-widest">CLI NOT FOUND</div>
         ) : (
           <div className="relative">
+            <button 
+              onClick={() => {
+                setLocalInput(prev => prev + (prev.endsWith(" ") || !prev ? "" : " ") + "@");
+                inputRef.current?.focus();
+              }}
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded flex items-center justify-center text-muted hover:text-accent z-10 transition-colors"
+              title="Attach Entity / File"
+            >
+              <Paperclip size={14} />
+            </button>
             <textarea
               ref={inputRef}
               value={localInput}
@@ -222,7 +233,7 @@ export default function ClaudePanel() {
               rows={1}
               disabled={isBusy}
               style={{ background: "#fff", border: "1px solid var(--border)" }}
-              className="w-full pl-4 pr-12 py-3 rounded-xl text-[12px] outline-none focus:border-accent shadow-sm transition-all disabled:opacity-50"
+              className="w-full pl-10 pr-12 py-3 rounded-xl text-[12px] outline-none focus:border-accent shadow-sm transition-all disabled:opacity-50"
             />
             <button 
               onClick={() => onSend()} 

@@ -71,6 +71,7 @@ export interface ProjectMeta {
   genre: string;
   synopsis: string;
   createdAt: string;
+  globalNotes?: string;
 }
 
 export interface ChapterFile {
