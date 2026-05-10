@@ -1,18 +1,20 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { api, ChapterFile } from "../lib/api";
+import { api, ChapterFile, Skill } from "../lib/api";
 import ChapterSidebar from "../components/layout/ChapterSidebar";
 import ControlPanel from "../components/layout/ControlPanel";
 import { Plus } from "lucide-react";
 
 export default function ManuscriptPage() {
   const [chapters, setChapters] = useState<ChapterFile[]>([]);
+  const [skills, setSkills] = useState<Skill[]>([]);
   const [showNew, setShowNew] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newBrief, setNewBrief] = useState("");
 
   useEffect(() => {
     loadChapters();
+    api.skillsList().then(setSkills);
   }, []);
 
   async function loadChapters() {
@@ -106,9 +108,15 @@ export default function ManuscriptPage() {
         totalWords={totalWords} 
         chapterBrief=""
         globalNotes=""
+        skills={skills}
         onBriefChange={() => {}}
         onGlobalNotesChange={() => {}}
-        onActionClick={(action) => console.log("Action:", action)}
+        onActionClick={(action, skillId) => {
+          if (skillId) {
+            console.log(`Executing skill ${skillId} on entire manuscript`);
+            // Pode implementar o disparo global no futuro
+          }
+        }}
       />
     </div>
   );

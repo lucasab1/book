@@ -41,7 +41,7 @@ export default function SettingsPage() {
   );
 
   return (
-    <div style={{ background: "var(--bg)", color: "var(--text)", minHeight: "100vh" }}>
+    <div className="h-screen w-full overflow-y-auto" style={{ background: "var(--bg)", color: "var(--text)" }}>
       <AppNav />
       <main className="max-w-3xl mx-auto px-8 py-16">
         <div className="flex items-center justify-between mb-12">
