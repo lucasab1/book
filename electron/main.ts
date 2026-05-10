@@ -9,7 +9,7 @@ function createMenu() {
     { label: "Bookmoth", submenu: [{ role: "about" }, { type: "separator" }, { role: "quit" }] },
     { label: "File", submenu: [{ label: "Open project folder", accelerator: "CmdOrCtrl+Shift+O", click: () => shell.openPath(app.getAppPath()) }, { type: "separator" }, { role: "close" }] },
     { label: "Edit", submenu: [{ role: "undo" }, { role: "redo" }, { type: "separator" }, { role: "cut" }, { role: "copy" }, { role: "paste" }, { role: "selectAll" }] },
-    { label: "View", submenu: [{ role: "reload" }, { role: "forceReload" }, { type: "separator" }, { role: "resetZoom" }, { role: "zoomIn" }, { role: "zoomOut" }, { type: "separator" }, { role: "togglefullscreen" }, ...(DEV ? [{ role: "toggleDevTools" as const }] : [])] },
+    { label: "View", submenu: [{ role: "reload", accelerator: "F5" }, { role: "forceReload", accelerator: "CmdOrCtrl+Shift+R" }, { type: "separator" }, { role: "resetZoom" }, { role: "zoomIn" }, { role: "zoomOut" }, { type: "separator" }, { role: "togglefullscreen" }, ...(DEV ? [{ role: "toggleDevTools" as const }] : [])] },
     { label: "Window", submenu: [{ role: "minimize" }, { role: "zoom" }] },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));

@@ -1,0 +1,6 @@
+src/
+electron/
+node_modules/
+dist/
+dist-electron/
+.git/

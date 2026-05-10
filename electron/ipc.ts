@@ -101,6 +101,15 @@ ipcMain.handle("project:open", (_e, folderPath: string) => {
   if (!fs.existsSync(path.join(folderPath, "project.json"))) {
     return { ok: false, error: "No project.json found. This doesn't look like a Bookmoth project." };
   }
+  
+  // Isolate AI workspace by initializing git if not present and adding .geminiignore
+  if (!fs.existsSync(path.join(folderPath, ".git"))) {
+    try { require("child_process").execSync("git init", { cwd: folderPath, stdio: "ignore" }); } catch {}
+  }
+  if (!fs.existsSync(path.join(folderPath, ".geminiignore"))) {
+    fs.writeFileSync(path.join(folderPath, ".geminiignore"), "src/\nelectron/\nnode_modules/\ndist/\ndist-electron/\n.git/\n");
+  }
+
   setRoot(folderPath);
   return { ok: true };
 });
@@ -199,9 +208,10 @@ function spawnAI(event: Electron.IpcMainInvokeEvent, provider: string, message: 
     if (process.platform === "win32") {
       // Use powershell.exe for better command resolution on Windows
       const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
+      const systemPrompt = `[SYSTEM: You are the Bookmoth Editorial Assistant. You MUST ONLY consider files in story/, kb/, entities/, assets/, and work/. COMPLETELY IGNORE the app source code (src/, electron/, node_modules/, etc.).]\n\n`;
       const psCmd = provider === "gemini"
-        ? `gemini --prompt ${q(message)}`
-        : `claude --print ${q(message)}`;
+        ? `gemini --prompt ${q(systemPrompt + message)}`
+        : `claude --print ${q(systemPrompt + message)}`;
       
       console.log(`[IPC] Spawning AI: ${psCmd}`);
       proc = spawn("powershell.exe", ["-NoProfile", "-Command", psCmd], {
