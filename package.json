@@ -6,7 +6,7 @@
   "scripts": {
     "setup": "bash scripts/setup.sh",
     "dev": "vite",
-    "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 -t 30000 && cross-env NODE_ENV=development electron .\"",
+    "electron:dev": "npm run electron:compile && concurrently -k \"vite\" \"wait-on http://localhost:5173 -t 30000 && cross-env NODE_ENV=development electron .\"",
     "electron:compile": "tsc -p electron/tsconfig.json",
     "electron:build": "vite build && npm run electron:compile && electron-builder",
     "build": "vite build",
