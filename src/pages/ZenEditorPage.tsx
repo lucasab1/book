@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Star, 
   Italic, 
@@ -23,9 +24,11 @@ export default function ZenEditorPage() {
   const [brief, setBrief] = useState("");
   const [globalNotes, setGlobalNotes] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveProjectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Theme-aware colors
   const cream = "var(--bg)";
@@ -56,6 +59,12 @@ export default function ZenEditorPage() {
       textAreaRef.current.style.height = textAreaRef.current.scrollHeight + "px";
     }
   }, [content, loaded]);
+
+  useEffect(() => {
+    const resetTyping = () => setIsTyping(false);
+    window.addEventListener("mousemove", resetTyping);
+    return () => window.removeEventListener("mousemove", resetTyping);
+  }, []);
 
   useEffect(() => {
     loadChapters();
@@ -103,6 +112,11 @@ export default function ZenEditorPage() {
     const val = e.target.value;
     setContent(val);
     scheduleSave(val, title, brief);
+    
+    // Ambient Mode Trigger
+    setIsTyping(true);
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => setIsTyping(false), 2500);
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,33 +148,59 @@ export default function ZenEditorPage() {
   }
 
   return (
-    <div className="flex h-full w-full overflow-hidden">
+    <div className="flex h-full w-full overflow-hidden bg-[var(--bg)] relative">
       
       {/* COLUMN A: Chapter Navigation */}
-      <ChapterSidebar chapters={chapters} currentSlug={slug} />
+      <AnimatePresence>
+        {!isTyping && (
+          <motion.div 
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -20, opacity: 0 }}
+            transition={{ duration: 0.4, ease: "easeInOut" }}
+            className="shrink-0 flex"
+          >
+            <ChapterSidebar chapters={chapters} currentSlug={slug} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* COLUMN B: Main Manuscript Editor */}
-      <main className="flex-1 flex flex-col overflow-hidden relative" style={{ background: cream }}>
+      <main className="flex-1 flex flex-col overflow-hidden relative transition-all duration-700" style={{ background: cream }}>
         {/* Editor Area */}
         <div className="flex-1 overflow-y-auto relative scroll-smooth px-8">
           {/* Floating Toolbar */}
-          <div className="sticky top-6 mx-auto w-fit z-20 flex items-center gap-1 glass-panel p-1 rounded-2xl shadow-elegant">
-            {[
-              { icon: <Italic size={16} />, label: "Italicise", action: () => applyStyle("italic") },
-              { label: "* * *", action: () => { setContent(prev => prev + "\n\n* * *\n\n"); } },
-              { icon: <Undo size={16} />, action: () => document.execCommand("undo") },
-              { icon: <Redo size={16} />, action: () => document.execCommand("redo") },
-              { icon: <Maximize2 size={16} />, label: "Focus", action: () => textAreaRef.current?.requestFullscreen() },
-            ].map((tool, i) => (
-              <button key={i} onClick={tool.action} className="p-2 hover:bg-[var(--text)]/5 rounded-xl text-[var(--text)]/40 hover:text-[var(--text)] transition-all flex items-center gap-2 px-3">
-                {tool.icon}
-                {tool.label && <span className="text-[10px] font-bold italic">{tool.label}</span>}
-              </button>
-            ))}
-          </div>
+          <AnimatePresence>
+            {!isTyping && (
+              <motion.div 
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -10, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="sticky top-6 mx-auto w-fit z-20 flex items-center gap-1 glass-panel p-1 rounded-2xl shadow-elegant"
+              >
+                {[
+                  { icon: <Italic size={16} />, label: "Italicise", action: () => applyStyle("italic") },
+                  { label: "* * *", action: () => { setContent(prev => prev + "\n\n* * *\n\n"); } },
+                  { icon: <Undo size={16} />, action: () => document.execCommand("undo") },
+                  { icon: <Redo size={16} />, action: () => document.execCommand("redo") },
+                  { icon: <Maximize2 size={16} />, label: "Focus", action: () => textAreaRef.current?.requestFullscreen() },
+                ].map((tool, i) => (
+                  <button key={i} onClick={tool.action} className="p-2 hover:bg-[var(--text)]/5 rounded-xl text-[var(--text)]/40 hover:text-[var(--text)] transition-all flex items-center gap-2 px-3">
+                    {tool.icon}
+                    {tool.label && <span className="text-[10px] font-bold italic">{tool.label}</span>}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="max-w-[650px] mx-auto pt-24 pb-40">
-            <div className="mb-16 group relative">
+            <motion.div 
+              animate={{ opacity: isTyping ? 0.3 : 1 }}
+              transition={{ duration: 0.5 }}
+              className="mb-16 group relative"
+            >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[var(--accent)]">Chapter {currentChapterIndex}</span>
@@ -183,7 +223,7 @@ export default function ZenEditorPage() {
                 placeholder="Chapter Title"
                 className="w-full bg-transparent border-none outline-none manuscript-editor text-5xl font-medium text-[var(--text)] placeholder:opacity-10 tracking-tight"
               />
-            </div>
+            </motion.div>
 
             <textarea 
               ref={textAreaRef}
@@ -196,33 +236,54 @@ export default function ZenEditorPage() {
           </div>
 
           {/* Bottom Right Word Count & Versions */}
-          <div className="fixed bottom-8 right-[calc(350px+288px+32px)] flex items-center gap-4 bg-[var(--surface)]/50 backdrop-blur-sm border border-[var(--border)] px-4 py-2 rounded-full text-[10px] font-bold text-[var(--text)]/40">
-            <div className="flex items-center gap-1">
-              {['v1', 'v2', 'v3'].map(v => (
-                <button key={v} className={`px-2 py-0.5 rounded ${v === 'v1' ? 'bg-[var(--text)] text-[var(--bg)]' : 'hover:bg-[var(--text)]/5'}`}>{v}</button>
-              ))}
-            </div>
-            <div className="w-px h-3 bg-[var(--text)]/10" />
-            <span>{wordCount.toLocaleString()} w</span>
-          </div>
+          <AnimatePresence>
+            {!isTyping && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="fixed bottom-8 right-[calc(350px+288px+32px)] flex items-center gap-4 bg-[var(--surface)]/50 backdrop-blur-sm border border-[var(--border)] px-4 py-2 rounded-full text-[10px] font-bold text-[var(--text)]/40"
+              >
+                <div className="flex items-center gap-1">
+                  {['v1', 'v2', 'v3'].map(v => (
+                    <button key={v} className={`px-2 py-0.5 rounded ${v === 'v1' ? 'bg-[var(--text)] text-[var(--bg)]' : 'hover:bg-[var(--text)]/5'}`}>{v}</button>
+                  ))}
+                </div>
+                <div className="w-px h-3 bg-[var(--text)]/10" />
+                <span>{wordCount.toLocaleString()} w</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
 
       {/* COLUMN C: Stats & Context */}
-      <ControlPanel 
-        chapters={chapters} 
-        currentSlug={slug} 
-        totalWords={totalWords} 
-        chapterBrief={brief} 
-        globalNotes={globalNotes}
-        skills={skills}
-        onBriefChange={(val) => {
-          setBrief(val);
-          scheduleSave(content, title, val);
-        }}
-        onGlobalNotesChange={handleGlobalNotesChange}
-        onActionClick={handleAction}
-      />
+      <AnimatePresence>
+        {!isTyping && (
+          <motion.div 
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 20, opacity: 0 }}
+            transition={{ duration: 0.4, ease: "easeInOut" }}
+            className="shrink-0 flex"
+          >
+            <ControlPanel 
+              chapters={chapters} 
+              currentSlug={slug} 
+              totalWords={totalWords} 
+              chapterBrief={brief} 
+              globalNotes={globalNotes}
+              skills={skills}
+              onBriefChange={(val) => {
+                setBrief(val);
+                scheduleSave(content, title, val);
+              }}
+              onGlobalNotesChange={handleGlobalNotesChange}
+              onActionClick={handleAction}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
