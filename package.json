@@ -6,8 +6,10 @@
   "scripts": {
     "setup": "bash scripts/setup.sh",
     "dev": "next dev",
-    "electron:dev": "concurrently -k \"next dev\" \"wait-on http://localhost:3000 && NODE_ENV=development electron .\"",
-    "electron:build": "next build && tsc -p electron/tsconfig.json && electron-builder",
+    "electron:start": "cross-env NODE_ENV=development electron .",
+    "electron:dev": "concurrently -k \"next dev\" \"wait-on http://localhost:3000 -t 60000 && npm run electron:start\"",
+    "electron:compile": "tsc -p electron/tsconfig.json",
+    "electron:build": "next build && npm run electron:compile && electron-builder",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -28,6 +30,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "electron": "^42.0.1",
     "electron-builder": "^26.8.1",
     "eslint": "^9",
@@ -54,13 +57,22 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "target": ["dmg", "zip"]
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "win": {
-      "target": ["nsis", "portable"]
+      "target": [
+        "nsis",
+        "portable"
+      ]
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Office"
     }
   }
