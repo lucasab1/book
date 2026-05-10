@@ -58,13 +58,22 @@ const api = {
   importChapters: (filePaths: string[]) => ipcRenderer.invoke("import:chapters", filePaths),
   importAssets: (filePaths: string[]) => ipcRenderer.invoke("import:assets", filePaths),
 
-  // Claude Code
+  // Claude Code (legacy single-provider)
   claudeRun: (message: string) => ipcRenderer.invoke("claude:run", message),
   claudeCheckInstalled: () => ipcRenderer.invoke("claude:checkInstalled"),
   claudeOnChunk: (cb: (text: string) => void) => {
     const handler = (_: Electron.IpcRendererEvent, text: string) => cb(text);
     ipcRenderer.on("claude:chunk", handler);
     return () => ipcRenderer.removeListener("claude:chunk", handler);
+  },
+
+  // Multi-provider AI runner
+  aiRun: (provider: string, message: string) => ipcRenderer.invoke("ai:run", provider, message),
+  aiCheckInstalled: () => ipcRenderer.invoke("ai:checkInstalled"),
+  aiOnChunk: (cb: (text: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, text: string) => cb(text);
+    ipcRenderer.on("ai:chunk", handler);
+    return () => ipcRenderer.removeListener("ai:chunk", handler);
   },
 };
 

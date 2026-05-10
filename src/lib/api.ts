@@ -51,10 +51,15 @@ declare global {
       importChapters: (filePaths: string[]) => Promise<string[]>;
       importAssets: (filePaths: string[]) => Promise<Asset[]>;
 
-      // Claude Code
+      // Claude Code (legacy)
       claudeRun: (message: string) => Promise<{ output?: string; error?: string }>;
       claudeCheckInstalled: () => Promise<boolean>;
       claudeOnChunk: (cb: (text: string) => void) => () => void;
+
+      // Multi-provider AI
+      aiRun: (provider: string, message: string) => Promise<{ output?: string; error?: string }>;
+      aiCheckInstalled: () => Promise<{ claude: boolean; gemini: boolean }>;
+      aiOnChunk: (cb: (text: string) => void) => () => void;
     };
   }
 }

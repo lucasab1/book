@@ -187,45 +187,57 @@ ipcMain.handle("import:assets", (_e, filePaths: string[]) => {
   return saved;
 });
 
-// ─── Claude Code runner ───────────────────────────────────────────────────────
+// ─── AI runner (Claude + Gemini) ─────────────────────────────────────────────
 
-// Runs: claude --print "<message>" in the project dir, streams output via events
-ipcMain.handle("claude:run", async (event, message: string) => {
-  const cwd = PROJECT_ROOT;
-  if (!cwd) return { error: "No project open." };
-
+function spawnAI(event: Electron.IpcMainInvokeEvent, cmd: string, args: string[], cwd: string) {
   return new Promise<{ output?: string; error?: string }>((resolve) => {
-    const proc = spawn("claude", ["--print", message], {
+    const proc = spawn(cmd, args, {
       cwd,
       env: { ...process.env },
       stdio: ["pipe", "pipe", "pipe"],
       shell: process.platform === "win32",
     });
-
     let output = "";
     let errOut = "";
-
     proc.stdout.on("data", (chunk: Buffer) => {
       const text = chunk.toString();
       output += text;
-      // Stream each chunk to renderer
-      event.sender.send("claude:chunk", text);
+      event.sender.send("ai:chunk", text);
     });
-
     proc.stderr.on("data", (chunk: Buffer) => { errOut += chunk.toString(); });
-
     proc.on("close", (code) => {
-      if (code !== 0 && !output) {
-        resolve({ error: errOut || `claude exited with code ${code}` });
-      } else {
-        resolve({ output });
-      }
+      if (code !== 0 && !output) resolve({ error: errOut || `${cmd} exited with code ${code}` });
+      else resolve({ output });
     });
-
-    proc.on("error", (err) => {
-      resolve({ error: `Could not start claude: ${err.message}. Make sure Claude Code is installed.` });
-    });
+    proc.on("error", (err) => resolve({ error: `Could not start ${cmd}: ${err.message}` }));
   });
+}
+
+// provider: "claude" | "gemini"
+ipcMain.handle("ai:run", async (event, provider: string, message: string) => {
+  const cwd = PROJECT_ROOT;
+  if (!cwd) return { error: "No project open." };
+  if (provider === "gemini") {
+    return spawnAI(event, "gemini", ["-p", message, "-o", "text"], cwd);
+  }
+  return spawnAI(event, "claude", ["--print", message], cwd);
+});
+
+ipcMain.handle("ai:checkInstalled", async () => {
+  function check(cmd: string) {
+    return new Promise<boolean>((resolve) => {
+      execFile(cmd, ["--version"], { timeout: 5000, shell: process.platform === "win32" }, (err) => resolve(!err));
+    });
+  }
+  const [claude, gemini] = await Promise.all([check("claude"), check("gemini")]);
+  return { claude, gemini };
+});
+
+// Keep old claude:run / claude:checkInstalled for backwards compat
+ipcMain.handle("claude:run", async (event, message: string) => {
+  const cwd = PROJECT_ROOT;
+  if (!cwd) return { error: "No project open." };
+  return spawnAI(event, "claude", ["--print", message], cwd);
 });
 
 ipcMain.handle("claude:checkInstalled", () => {
