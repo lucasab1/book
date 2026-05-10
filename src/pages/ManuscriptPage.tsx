@@ -105,7 +105,9 @@ export default function ManuscriptPage() {
         chapters={chapters} 
         totalWords={totalWords} 
         chapterBrief=""
+        globalNotes=""
         onBriefChange={() => {}}
+        onGlobalNotesChange={() => {}}
         onActionClick={(action) => console.log("Action:", action)}
       />
     </div>

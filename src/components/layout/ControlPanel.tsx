@@ -6,7 +6,9 @@ interface Props {
   currentSlug?: string;
   totalWords: number;
   chapterBrief: string;
+  globalNotes: string;
   onBriefChange: (val: string) => void;
+  onGlobalNotesChange: (val: string) => void;
   onActionClick: (action: string) => void;
 }
 
@@ -15,7 +17,9 @@ export default function ControlPanel({
   currentSlug, 
   totalWords, 
   chapterBrief, 
+  globalNotes,
   onBriefChange,
+  onGlobalNotesChange,
   onActionClick 
 }: Props) {
   const currentIndex = chapters.findIndex(c => c.slug === currentSlug) + 1;

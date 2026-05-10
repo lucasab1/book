@@ -20,9 +20,11 @@ export default function ZenEditorPage() {
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [brief, setBrief] = useState("");
+  const [globalNotes, setGlobalNotes] = useState("");
   const [loaded, setLoaded] = useState(false);
   
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveProjectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Theme-aware colors
   const cream = "var(--bg)";
@@ -210,10 +212,12 @@ export default function ZenEditorPage() {
         currentSlug={slug} 
         totalWords={totalWords} 
         chapterBrief={brief} 
+        globalNotes={globalNotes}
         onBriefChange={(val) => {
           setBrief(val);
           scheduleSave(content, title, val);
         }}
+        onGlobalNotesChange={handleGlobalNotesChange}
         onActionClick={handleAction}
       />
     </div>
