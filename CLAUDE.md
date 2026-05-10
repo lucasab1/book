@@ -38,11 +38,20 @@ Prose content here...
 |---|---|
 | `/write` | Draft prose in the author's voice from the chapter brief |
 | `/brainstorm` | Explore ideas, directions, options |
-| `/critique` | Adversarial developmental feedback |
+| `/critique` | Adversarial developmental feedback (includes banned-pattern + AI-tells scan) |
 | `/kb` | Create/update a knowledge base entry |
 | `/outline` | Build or refine story structure |
 | `/character` | Simulate voice, develop psychology, check consistency |
 | `/continuity` | Check a chapter against the KB for errors |
+| `/ripple` | Character-ripples editing pass — flag frozen scenes and missing reactions |
+
+## Skills (auto-applied)
+
+| Skill | Applied by |
+|---|---|
+| `prose-banned-patterns` | `/write` (prevention), `/critique` (detection) |
+| `ai-tells` | `/write` (prevention), `/critique` (detection) |
+| `character-ripples` | `/ripple` |
 
 ## When writing drafts
 

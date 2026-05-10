@@ -19,7 +19,15 @@ Otherwise, list the files in `story/` and ask which chapter to draft.
 
 Read the target chapter file and extract the `brief` from its frontmatter.
 
-## Step 3 — Draft
+## Step 3 — Apply quality constraints
+
+Before drafting, internalize the two constraint sets:
+
+1. **Banned patterns** (`@.claude/skills/prose-banned-patterns/REFERENCE.md`): Do not produce any construction, word, or phrase on the banned lists. Prevention mode — catch violations before output, not after.
+
+2. **AI tells** (`@.claude/skills/ai-tells/REFERENCE.md`): Do not produce any Easy, Medium, or Hard tell. No amplification echo, no gravity paragraphs, no "something shifted", no sensory checklists, no wisdom-dispensing mentors.
+
+## Step 4 — Draft
 
 Write the full chapter. Follow the voice profile exactly:
 - Match sentence rhythm patterns (short/long, pauses, run-ons if used)
@@ -29,7 +37,7 @@ Write the full chapter. Follow the voice profile exactly:
 
 Output only prose. No commentary wrapped around it.
 
-## Step 4 — Save
+## Step 5 — Save
 
 Write the draft to `work/drafts/[chapter-slug].md` with a header:
 
