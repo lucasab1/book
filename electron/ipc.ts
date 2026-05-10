@@ -199,6 +199,7 @@ ipcMain.handle("claude:run", async (event, message: string) => {
       cwd,
       env: { ...process.env },
       stdio: ["pipe", "pipe", "pipe"],
+      shell: process.platform === "win32",
     });
 
     let output = "";
@@ -229,7 +230,7 @@ ipcMain.handle("claude:run", async (event, message: string) => {
 
 ipcMain.handle("claude:checkInstalled", () => {
   return new Promise<boolean>((resolve) => {
-    execFile("claude", ["--version"], { timeout: 5000 }, (err) => resolve(!err));
+    execFile("claude", ["--version"], { timeout: 5000, shell: process.platform === "win32" }, (err) => resolve(!err));
   });
 });
 
@@ -374,7 +375,7 @@ ipcMain.handle("assets:delete", (_e, id: string) => {
 const BUILT_IN_PROVIDERS = [
   { id: "claude-code", name: "Claude Code (Pro)", command: "claude", args: ["--print", "--output-format", "text"], type: "claude-code", capabilities: ["write","summarize","analyze","critique","extract"], maxContextTokens: 200000, costTier: "pro", streamOutput: false, promptFormat: "raw", enabled: true },
   { id: "ollama-llama3", name: "Ollama (llama3)", command: "ollama", args: ["run","llama3"], type: "ollama", capabilities: ["write","summarize","analyze"], maxContextTokens: 8192, costTier: "free", streamOutput: true, promptFormat: "raw", enabled: false },
-  { id: "gemini-cli", name: "Gemini CLI", command: "gemini", args: [], type: "gemini-cli", capabilities: ["write","summarize","analyze","critique"], maxContextTokens: 128000, costTier: "free", streamOutput: false, promptFormat: "raw", enabled: false },
+  { id: "gemini-cli", name: "Gemini CLI (Pro)", command: "gemini", args: [], type: "gemini-cli", capabilities: ["write","summarize","analyze","critique","extract"], maxContextTokens: 1000000, costTier: "pro", streamOutput: false, promptFormat: "raw", enabled: true },
 ];
 
 function getProviderConfig() { const f = path.join(dirs().config, "providers.json"); try { if (fs.existsSync(f)) return JSON.parse(fs.readFileSync(f, "utf-8")); } catch { /* defaults */ } return { providers: BUILT_IN_PROVIDERS, defaultProviders: { write: "claude-code", summarize: "claude-code", analyze: "claude-code", critique: "claude-code", extract: "claude-code" } }; }
@@ -384,5 +385,5 @@ ipcMain.handle("providers:set", (_e, config: object) => { const f = path.join(di
 ipcMain.handle("providers:check", (_e, providerId: string) => {
   const cfg = getProviderConfig() as { providers: Array<{ id: string; command: string }> };
   const p = cfg.providers.find((x) => x.id === providerId); if (!p) return { available: false };
-  return new Promise<{ available: boolean }>((res) => { execFile(p.command, ["--version"], { timeout: 5000 }, (err) => res({ available: !err })); });
+  return new Promise<{ available: boolean }>((res) => { execFile(p.command, ["--version"], { timeout: 5000, shell: process.platform === "win32" }, (err) => res({ available: !err })); });
 });
