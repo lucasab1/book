@@ -81,11 +81,17 @@ ipcMain.handle("project:getRecents", () => {
 });
 
 ipcMain.handle("project:pickFolder", async () => {
-  const result = await dialog.showOpenDialog({ properties: ["openDirectory"] });
+  console.log("[IPC] project:pickFolder called");
+  const result = await dialog.showOpenDialog({ 
+    properties: ["openDirectory", "createDirectory"],
+    title: "Select Project Folder"
+  });
+  console.log("[IPC] project:pickFolder result:", result);
   return result.canceled ? null : result.filePaths[0];
 });
 
 ipcMain.handle("project:create", (_e, folderPath: string, meta: { title: string; genre: string; synopsis: string }) => {
+  console.log("[IPC] project:create called for:", folderPath);
   for (const d of PROJECT_DIRS) {
     fs.mkdirSync(path.join(folderPath, d), { recursive: true });
   }
@@ -98,7 +104,9 @@ ipcMain.handle("project:create", (_e, folderPath: string, meta: { title: string;
 });
 
 ipcMain.handle("project:open", (_e, folderPath: string) => {
+  console.log("[IPC] project:open called for:", folderPath);
   if (!fs.existsSync(path.join(folderPath, "project.json"))) {
+    console.error("[IPC] No project.json found in:", folderPath);
     return { ok: false, error: "No project.json found. This doesn't look like a Bookmoth project." };
   }
   
@@ -205,41 +213,23 @@ function spawnAI(event: Electron.IpcMainInvokeEvent, provider: string, message: 
   return new Promise<{ output?: string; error?: string }>((resolve) => {
     let proc: ReturnType<typeof spawn>;
 
+    const env = { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" };
+
     if (process.platform === "win32") {
-      // Use powershell.exe for better command resolution on Windows
+      // PowerShell single-quote escaping: ' → ''
       const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
-      const systemPrompt = `[SYSTEM: You are the Bookmoth Editorial Assistant. You MUST ONLY consider files in story/, kb/, entities/, assets/, and work/. COMPLETELY IGNORE the app source code (src/, electron/, node_modules/, etc.).]\n\n`;
+      // --print / -p flags are required for non-interactive (headless) mode
       const psCmd = provider === "gemini"
-        ? `gemini --prompt ${q(systemPrompt + message)}`
-        : `claude --print ${q(systemPrompt + message)}`;
-      
-      console.log(`[IPC] Spawning AI: ${psCmd}`);
+        ? `gemini -p ${q(message)} -o text`
+        : `claude --print ${q(message)}`;
       proc = spawn("powershell.exe", ["-NoProfile", "-Command", psCmd], {
-        cwd,
-        env: { 
-          ...process.env, 
-          FORCE_COLOR: "1",
-          GEMINI_CLI_TRUST_WORKSPACE: "true",
-          CLAUDE_CODE_TRUST_WORKSPACE: "true"
-        },
-        stdio: ["pipe", "pipe", "pipe"],
+        cwd, env, stdio: ["pipe", "pipe", "pipe"],
       });
     } else {
       const [cmd, ...args] = provider === "gemini"
-        ? ["gemini", "--prompt", message]
+        ? ["gemini", "-p", message, "-o", "text"]
         : ["claude", "--print", message];
-      
-      console.log(`[IPC] Spawning AI: ${cmd} ${args.join(" ")}`);
-      proc = spawn(cmd, args, { 
-        cwd, 
-        env: { 
-          ...process.env, 
-          FORCE_COLOR: "1",
-          GEMINI_CLI_TRUST_WORKSPACE: "true",
-          CLAUDE_CODE_TRUST_WORKSPACE: "true"
-        }, 
-        stdio: ["pipe", "pipe", "pipe"] 
-      });
+      proc = spawn(cmd, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
     }
 
     const pid = proc.pid || Math.random();
@@ -451,16 +441,82 @@ ipcMain.handle("assets:delete", (_e, id: string) => {
 });
 
 // ─── SKILLS ────────────────────────────────────────────────────────────────
+
+// Built-in skills ship with the app itself (.claude/skills next to the electron source)
+const BUILTIN_SKILLS_DIR = app.isPackaged
+  ? path.join(process.resourcesPath, ".claude", "skills")
+  : path.join(process.cwd(), ".claude", "skills");
+
+// User-global skills persisted across projects (userData/skills)
+const GLOBAL_SKILLS_DIR = path.join(app.getPath("userData"), "skills");
+
+function scanSkillsDir(dir: string): Array<{ id: string; title: string; source: string }> {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => ({
+      id: d.name,
+      title: d.name.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+      source: dir,
+    }));
+}
+
+// Lazily sync built-in skills → GLOBAL_SKILLS_DIR once on first call
+let skillsSynced = false;
+function syncBuiltinSkills() {
+  if (skillsSynced) return;
+  skillsSynced = true;
+  if (!fs.existsSync(BUILTIN_SKILLS_DIR)) return;
+  fs.mkdirSync(GLOBAL_SKILLS_DIR, { recursive: true });
+  for (const entry of fs.readdirSync(BUILTIN_SKILLS_DIR, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const dest = path.join(GLOBAL_SKILLS_DIR, entry.name);
+    if (!fs.existsSync(dest)) {
+      // Copy the entire skill folder
+      const src = path.join(BUILTIN_SKILLS_DIR, entry.name);
+      fs.mkdirSync(dest, { recursive: true });
+      for (const f of fs.readdirSync(src)) {
+        fs.copyFileSync(path.join(src, f), path.join(dest, f));
+      }
+    }
+  }
+}
+
 ipcMain.handle("skills:list", () => {
-  const skillsDir = path.join(dirs().config, "..", ".claude", "skills");
-  if (!fs.existsSync(skillsDir)) return [];
-  return fs.readdirSync(skillsDir, { withFileTypes: true })
-    .filter(dirent => dirent.isDirectory())
-    .map(dirent => {
-      const id = dirent.name;
-      const title = id.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase());
-      return { id, title };
-    });
+  syncBuiltinSkills();
+  const seen = new Set<string>();
+  const skills: Array<{ id: string; title: string }> = [];
+
+  // Priority: project-local > global (includes built-ins)
+  const dirs = [
+    ...(PROJECT_ROOT ? [path.join(PROJECT_ROOT, ".claude", "skills")] : []),
+    GLOBAL_SKILLS_DIR,
+    BUILTIN_SKILLS_DIR,
+  ];
+
+  for (const dir of dirs) {
+    for (const skill of scanSkillsDir(dir)) {
+      if (!seen.has(skill.id)) {
+        seen.add(skill.id);
+        skills.push({ id: skill.id, title: skill.title });
+      }
+    }
+  }
+  return skills;
+});
+
+ipcMain.handle("skills:get", (_e, id: string) => {
+  // Project-local takes priority, then global, then built-in
+  const candidates = [
+    PROJECT_ROOT ? path.join(PROJECT_ROOT, ".claude", "skills", id, "SKILL.md") : null,
+    path.join(GLOBAL_SKILLS_DIR, id, "SKILL.md"),
+    path.join(BUILTIN_SKILLS_DIR, id, "SKILL.md"),
+  ].filter(Boolean) as string[];
+
+  for (const f of candidates) {
+    if (fs.existsSync(f)) return fs.readFileSync(f, "utf-8");
+  }
+  return null;
 });
 
 // ─── PROVIDERS ───────────────────────────────────────────────────────────────
